@@ -2,6 +2,7 @@ import { profileSchema } from "@contracts/profile";
 import { createRouter, publicQuery } from "./middleware";
 import { log } from "./lib/logger";
 import { clientKey, take } from "./lib/ratelimit";
+import { readLock } from "./lib/lock";
 
 /**
  * 使用者信息上报。
@@ -13,6 +14,9 @@ import { clientKey, take } from "./lib/ratelimit";
  */
 export const profileRouter = createRouter({
   submit: publicQuery.input(profileSchema).mutation(async ({ input, ctx }) => {
+    const lock = await readLock(ctx.env?.PROFILES);
+    if (lock.locked) return { ok: false as const, reason: "locked" };
+
     // 同一个 IP 每小时最多 20 条：正常人填一次就够，脚本刷不出量
     const limit = take(`profile:${clientKey(ctx.req.headers)}`, 20);
     if (!limit.ok) return { ok: false as const, reason: "rate-limited" };

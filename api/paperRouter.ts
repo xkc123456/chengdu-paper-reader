@@ -8,6 +8,7 @@ import { AiInvalidRequest, AiMisconfigured, AiUnavailable, ContentRejected, clas
 import { env } from "./lib/env";
 import { clientKey, take } from "./lib/ratelimit";
 import { log } from "./lib/logger";
+import { DEFAULT_LOCK_MESSAGE, readLock } from "./lib/lock";
 
 // Schema 必须自己写进提示词。
 //
@@ -79,6 +80,12 @@ export const paperRouter = createRouter({
       }),
     )
     .mutation(async ({ input, ctx }) => {
+      // 站长在后台按了「暂停使用」：解析直接拒绝，前端会显示暂停页
+      const lock = await readLock(ctx.env?.PROFILES);
+      if (lock.locked) {
+        throw new TRPCError({ code: "SERVICE_UNAVAILABLE", message: lock.message || DEFAULT_LOCK_MESSAGE });
+      }
+
       const limit = take(clientKey(ctx.req.headers), env.rateLimitPerHour);
       if (!limit.ok) {
         throw new TRPCError({

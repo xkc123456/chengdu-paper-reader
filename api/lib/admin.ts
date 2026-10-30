@@ -5,6 +5,8 @@
 //
 // ADMIN_KEY 通过 `wrangler secret put ADMIN_KEY` 注入，不进仓库、不出现在前端。
 
+import { DEFAULT_LOCK_MESSAGE, readLock, writeLock } from "./lock";
+
 interface KvLike {
   list(options?: { prefix?: string; limit?: number; cursor?: string }): Promise<{
     keys: { name: string }[];
@@ -12,6 +14,7 @@ interface KvLike {
     cursor?: string;
   }>;
   get(key: string): Promise<string | null>;
+  put(key: string, value: string): Promise<void>;
 }
 
 export interface AdminEnv {
@@ -24,6 +27,7 @@ export interface AdminContext {
   env: unknown;
   html(body: string): Response;
   text(body: string, status?: 200 | 404 | 500): Response;
+  redirect(location: string, status?: 303): Response;
 }
 
 type Record_ = {
@@ -89,6 +93,19 @@ export async function handleAdmin(c: AdminContext): Promise<Response> {
   const store = env.PROFILES;
   if (!store) return c.text("当前运行环境没有绑定 KV（PROFILES）", 500);
 
+  // 暂停 / 恢复：页面上的表单用 GET 提交，处理完 303 回后台本身
+  const action = c.req.query("action") ?? "";
+  if (action === "lock" || action === "unlock") {
+    const message = (c.req.query("msg") ?? "").trim() || DEFAULT_LOCK_MESSAGE;
+    await writeLock(store, {
+      locked: action === "lock",
+      message: action === "lock" ? message : "",
+      at: new Date().toISOString(),
+    });
+    return c.redirect(`/admin?key=${encodeURIComponent(provided)}`, 303);
+  }
+
+  const lock = await readLock(store);
   const rows = await readAll(store);
 
   if ((c.req.query("format") ?? "") === "csv") {
@@ -137,11 +154,32 @@ export async function handleAdmin(c: AdminContext): Promise<Response> {
   .dim { color: #7c8798; }
   .actions { margin-bottom: 14px; }
   .actions a { display: inline-block; padding: 8px 14px; border-radius: 7px; background: #0064e6; color: #fff; text-decoration: none; font-size: 13px; }
+  .lock { border: 1px solid #dce2eb; border-radius: 10px; padding: 14px 16px; background: #fff; margin-bottom: 18px; }
+  .lock.on { border-color: #e0a17e; background: #fff7f2; }
+  .lock-state { font-weight: 600; margin-bottom: 10px; }
+  .lock form { display: flex; gap: 8px; flex-wrap: wrap; }
+  .lock input[name="msg"] { flex: 1; min-width: 200px; padding: 8px 10px; border: 1px solid #dce2eb; border-radius: 7px; font-size: 13px; }
+  .lock button { padding: 8px 14px; border-radius: 7px; border: 1px solid #dce2eb; background: #f5f7fa; font-size: 13px; cursor: pointer; }
+  .lock button[value="lock"] { background: #a85a32; border-color: #a85a32; color: #fff; }
+  .lock button[value="unlock"] { background: #087a62; border-color: #087a62; color: #fff; }
+  .hint { margin: 10px 0 0; color: #7c8798; font-size: 12px; }
   .empty { padding: 36px; text-align: center; color: #7c8798; }
 </style></head>
 <body>
   <h1>澄读 · 使用登记</h1>
   <div class="sub">共 ${rows.length} 条 · 来自 ${schools} 所学校</div>
+
+  <div class="lock ${lock.locked ? "on" : ""}">
+    <div class="lock-state">${lock.locked ? "🔒 站点已暂停" : "✅ 站点正常使用"}</div>
+    <form method="get" action="/admin">
+      <input type="hidden" name="key" value="${key}">
+      <input name="msg" placeholder="暂停时显示的说明（可选）" value="${escapeHtml(lock.message)}">
+      <button name="action" value="lock">暂停使用</button>
+      <button name="action" value="unlock">恢复使用</button>
+    </form>
+    <p class="hint">暂停后访客看到说明页、解析接口返回 503，数据仍保留；生效通常 10–60 秒（KV 缓存）。</p>
+  </div>
+
   <div class="actions"><a href="/admin?key=${key}&format=csv">导出 CSV</a></div>
   <div class="card">
     ${rows.length

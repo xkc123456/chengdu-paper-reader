@@ -8,6 +8,7 @@ import { trpc } from "./providers/trpc";
 import { sampleAnalysis, sampleText } from "./lib/sample";
 import { loadKey, saveKey } from "./lib/key";
 import { loadProfile, saveProfile, type Profile } from "./lib/profile";
+import LockedScreen from "./components/LockedScreen";
 import ProfileGate from "./components/ProfileGate";
 import { ThemeToggle } from "./lib/theme";
 import ImportPanel from "./components/ImportPanel";
@@ -71,6 +72,12 @@ export default function App() {
   const [profile, setProfile] = useState<Profile | null>(loadProfile);
   const [gateOpen, setGateOpen] = useState(() => !loadProfile());
   const submitProfile = trpc.profile.submit.useMutation();
+  // 站点暂停开关：每 60 秒查一次，站长在后台一关，访客这边最多一分钟就看到暂停页
+  const siteStatus = trpc.site.status.useQuery(undefined, {
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+    staleTime: 30_000,
+  });
 
   const analyze = trpc.paper.analyze.useMutation({
     onSuccess: (data) => {
@@ -103,6 +110,11 @@ export default function App() {
     setTab("source");
     window.setTimeout(() => document.getElementById(`source-section-${index}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
   };
+
+  // 站长暂停时给一个说明页：页面不消失，只是不能继续用
+  if (siteStatus.data?.locked) {
+    return <LockedScreen message={siteStatus.data.message} />;
+  }
 
   return (
     <div className="site-shell">
