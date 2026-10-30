@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "xing2557",
+  "name": "chengdu-reader",
   "main": "api/worker.ts",
   "compatibility_date": "2025-09-01",
   // nodejs_compat：让 process.env / node:path 这类用法在 Workers 上可用，
