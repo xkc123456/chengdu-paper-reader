@@ -1,4 +1,3 @@
-import "dotenv/config";
 import path from "path";
 
 // 所有配置都是可选的：一个变量都不配，站点也能起来并展示内置示例。
@@ -23,8 +22,22 @@ function ownerKeyPolicy(): OwnerKeyPolicy {
   return text("OWNER_KEY_POLICY") === "open" ? "open" : "closed";
 }
 
+/** Cloudflare Workers 没有文件系统：用 WebSocketPair 作为运行时标记，把文件日志旁路掉 */
+const isCloudflareWorkers =
+  typeof (globalThis as { WebSocketPair?: unknown }).WebSocketPair !== "undefined";
+
+function defaultLogDir(): string {
+  if (isCloudflareWorkers) return "";
+  try {
+    return path.join(process.cwd(), ".data", "logs");
+  } catch {
+    return "";
+  }
+}
+
 export const env = {
   isProduction: process.env.NODE_ENV === "production",
+  isCloudflareWorkers,
   port: int("PORT", 3000),
   /** 站长自己的模型 Key；仅当 ownerKeyPolicy=open 时才会被访客请求借用 */
   ownerApiKey: text("DEEPSEEK_API_KEY"),
@@ -34,5 +47,5 @@ export const env = {
   llmModel: text("LLM_MODEL") || "deepseek-chat",
   /** 每个 IP 每小时的解析次数上限：即使有人刷，消耗的也是他自己那份 Key */
   rateLimitPerHour: int("RATE_LIMIT_PER_HOUR", 30),
-  logDir: text("LOG_DIR") || path.join(process.cwd(), ".data", "logs"),
+  logDir: text("LOG_DIR") || defaultLogDir(),
 };

@@ -39,12 +39,35 @@ npm start       # 生产模式，读取 dist/server.js
 
 ## 部署
 
-仓库自带 `Dockerfile`，任何能跑容器的平台都可以直接部署（Render、Railway、Fly.io、自己的 VPS）：
+两个运行时共用同一份 `api/` 代码，按需要选一个：
+
+### A. Cloudflare Workers（免费，72 小时内可上线）
+
+免费额度：每天 10 万次请求、无限静态流量、不睡觉、不过期、不需要信用卡。
+
+```bash
+npm run build      # 先产出 dist/public，Workers 的 Assets 绑定要用
+npx wrangler login # 浏览器里授权一次
+npm run cf:deploy  # 部署，几十秒后给出 *.workers.dev 网址
+```
+
+配置在 `wrangler.jsonc`：`assets` 指向 `dist/public`，`not_found_handling` 设为单页应用回退；
+`compatibility_flags` 打开 `nodejs_compat`，这样 `api/` 里的 `process.env`、`node:path` 不用改。
+本地预览用 `npm run cf:dev`（在 workerd 里跑，和线上是同一个运行时）。
+
+> 免费版单次请求有 **10ms CPU** 上限（等待模型的时间不算 CPU，但 JSON 解析与校验算）。
+> 如果日志里出现 `1102` / "Worker exceeded CPU time limit"，升级到付费版（$5/月）或改用下面的 B 方案。
+
+### B. 自己的一台服务器（国内访问快）
+
+仓库自带 `Dockerfile`，任何能跑容器的平台都可以直接部署（自己的 VPS、Render、Railway、Fly.io）：
 
 ```bash
 docker build -t chengdu-paper-reader .
-docker run -p 3000:3000 chengdu-paper-reader
+docker run -d -p 3000:3000 --restart unless-stopped chengdu-paper-reader
 ```
+
+国内轻量服务器（学生机约 ¥10/月）配个 Caddy/Nginx 反代就能上 HTTPS，国内访问通常 20–50ms。
 
 部署时通常**不需要配置任何环境变量**：默认就是「访客自带 Key」模式。想用自己的额度做演示，再加 `DEEPSEEK_API_KEY` + `OWNER_KEY_POLICY=open`。
 

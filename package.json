@@ -8,6 +8,8 @@
     "build": "vite build && esbuild api/server.ts --platform=node --bundle --format=esm --outdir=dist --banner:js=\"import { createRequire } from 'module';const require = createRequire(import.meta.url);\"",
     "preview": "vite preview",
     "start": "node dist/server.js",
+    "cf:dev": "npm run build && wrangler dev",
+    "cf:deploy": "npm run build && wrangler deploy",
     "check": "tsc -b",
     "format": "prettier --write .",
     "test": "vitest run"
@@ -41,6 +43,7 @@
     "prettier": "^3.7.4",
     "typescript": "~5.9.3",
     "vite": "^7.1.14",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.16",
+    "wrangler": "^4.156.0"
   }
 }

@@ -29,7 +29,9 @@ import { env } from "./env";
 // budget below: past it the file is truncated once, with a marker, so the newest
 // evidence survives and the total stays bounded.
 const LOG_DIR = env.logDir;
-const LOG_FILE = process.env.LOG_FILE ?? path.join(LOG_DIR, "app.log");
+// Workers 里没有可写文件系统：LOG_FILE 为空串时整个文件 sink 直接旁路，只走 stdout。
+const LOG_FILE = LOG_DIR ? process.env.LOG_FILE ?? path.join(LOG_DIR, "app.log") : "";
+let fileSinkDisabled = false;
 // 8 MiB is far more than a debugging session reads and small enough that even a
 // hostile write rate cannot exhaust a sandbox disk.
 const LOG_MAX_BYTES = 8 * 1024 * 1024;
@@ -80,6 +82,21 @@ function ensureDir(): void {
   }
 }
 
+// 文件 sink 是一个「有则更好」的附加件：Node 上写 .data/logs，Workers 上直接跳过。
+// 第一次写失败就永久关掉，不要让它变成每个请求都付一次异常开销的负担
+// （Cloudflare 免费版只有 10ms CPU）。
+function appendToFile(line: string): void {
+  if (!LOG_FILE || fileSinkDisabled) return;
+  try {
+    ensureDir();
+    enforceBudget(line.length + 1);
+    fs.appendFileSync(LOG_FILE, line + "\n");
+    bytesWritten += line.length + 1;
+  } catch {
+    fileSinkDisabled = true;
+  }
+}
+
 type Level = "debug" | "info" | "warn" | "error";
 
 // Reserved fields the caller must not be able to override from ctx — same gate
@@ -121,14 +138,7 @@ function write(level: Level, msg: string, ctx?: Record<string, unknown>): void {
   // under some defaults, which would drop the line from stdout too.
   else console.log(line);
 
-  ensureDir();
-  try {
-    enforceBudget(line.length + 1);
-    fs.appendFileSync(LOG_FILE, line + "\n");
-    bytesWritten += line.length + 1;
-  } catch {
-    // Best-effort sink; never let logging break a request.
-  }
+  appendToFile(line);
 }
 
 // appendLine is the sink the client-log endpoint writes through, so browser
@@ -144,14 +154,7 @@ export function appendLine(line: string): void {
   } catch {
     // stdout is best-effort too.
   }
-  ensureDir();
-  try {
-    enforceBudget(line.length + 1);
-    fs.appendFileSync(LOG_FILE, line + "\n");
-    bytesWritten += line.length + 1;
-  } catch {
-    // Best-effort.
-  }
+  appendToFile(line);
 }
 
 export const log = {
