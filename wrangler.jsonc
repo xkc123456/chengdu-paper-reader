@@ -15,6 +15,12 @@
   "observability": {
     "enabled": true
   },
+  // 自定义域：zone 激活后由 Cloudflare 自动创建 DNS 记录并签发证书，
+  // 不需要手动加 A/CNAME。部署前 zone 必须是 Active，否则 wrangler 会报错。
+  "routes": [
+    { "pattern": "cdreader.top", "custom_domain": true },
+    { "pattern": "www.cdreader.top", "custom_domain": true }
+  ],
   // 默认不配任何变量：访客自带 Key 模式。站长自用演示时再取消注释：
   // "vars": { "OWNER_KEY_POLICY": "open" }
   "vars": {}
