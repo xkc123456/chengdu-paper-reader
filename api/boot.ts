@@ -6,6 +6,7 @@ import { appRouter } from "./router";
 import { createContext, type WorkerBindings } from "./context";
 import { log } from "./lib/logger";
 import { handleClientLog } from "./lib/clientlog";
+import { handleAdmin, type AdminContext } from "./lib/admin";
 import { REQUEST_ID_HEADER, runWithRequestId } from "./lib/requestcontext";
 
 const app = new Hono<{ Bindings: HttpBindings }>();
@@ -70,11 +71,13 @@ app.use("/api/trpc/*", async (c) => {
 // body itself, but only AFTER Hono has read it into memory, and this route sits
 // on the public preview URL — the cap has to bite before the read.
 app.post(
-  "/api/log",
-  bodyLimit({ maxSize: 64 * 1024, onError: (c) => c.body(null, 413) }),
+  "/api/log",  bodyLimit({ maxSize: 64 * 1024, onError: (c) => c.body(null, 413) }),
   handleClientLog,
 );
 app.all("/api/*", (c) => c.json({ error: "Not Found" }, 404));
+
+// 站长后台：读 KV 里的院校上报。没配 ADMIN_KEY 时一律 404，不暴露存在性。
+app.get("/admin", (c) => handleAdmin(c as unknown as AdminContext));
 
 // Unhandled request errors must reach /tmp/kimi-logs/app.log, not just stdout:
 // that file is what the building agent reads when a preview 500s, and without

@@ -10,11 +10,18 @@
     "directory": "./dist/public",
     "binding": "ASSETS",
     // 前端是单页应用：未命中静态文件时回退 index.html，深链接才不会 404
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    // 这两条必须先交给 Worker：否则浏览器的 HTML 请求会被 SPA 回退直接吃掉，
+    // /admin 会返回首页、/api 根本到不了 Hono。
+    "run_worker_first": ["/admin", "/api/*"]
   },
   "observability": {
     "enabled": true
   },
+  // 院校上报的存储：KV 命名空间，键形如 p:<时间>:<uuid>
+  "kv_namespaces": [
+    { "binding": "PROFILES", "id": "8dcc463a9c3c411d92a283da4800ab02" }
+  ],
   // 自定义域：zone 激活后由 Cloudflare 自动创建 DNS 记录并签发证书，
   // 不需要手动加 A/CNAME。部署前 zone 必须是 Active，否则 wrangler 会报错。
   "routes": [

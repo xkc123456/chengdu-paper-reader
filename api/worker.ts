@@ -16,8 +16,9 @@ interface WorkerEnv {
 export default {
   async fetch(request: Request, env: WorkerEnv): Promise<Response> {
     const { pathname } = new URL(request.url);
-    if (pathname === "/api" || pathname.startsWith("/api/")) {
-      // env 要透传进去：tRPC 上下文靠它拿 KV 绑定（profile 上报）
+    // /admin 也交给应用处理，否则会被 Assets 的单页回退吃掉
+    if (pathname === "/admin" || pathname === "/api" || pathname.startsWith("/api/")) {
+      // env 要透传进去：tRPC 上下文与 /admin 都靠它拿 KV 绑定
       return app.fetch(request, env as unknown as Parameters<typeof app.fetch>[1]);
     }
     return env.ASSETS.fetch(request);

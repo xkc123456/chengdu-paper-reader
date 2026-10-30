@@ -3,21 +3,8 @@ import { ArrowRight, GraduationCap, LoaderCircle } from "lucide-react";
 import { citiesOf, loadUniversities, schoolsOf, type UniversityIndex } from "../lib/universities";
 import { DEGREES, REGION_ALIASES, type Degree, type Profile } from "../lib/profile";
 
-// 专业不适合做下拉（本科专业 800+），给一份常见专业的建议，用户可自由输入。
-const MAJOR_HINTS = [
-  "计算机科学与技术", "软件工程", "人工智能", "数据科学与大数据技术", "网络空间安全",
-  "电子信息工程", "通信工程", "自动化", "电气工程及其自动化", "微电子科学与工程",
-  "机械设计制造及其自动化", "车辆工程", "土木工程", "建筑学", "材料科学与工程",
-  "能源与动力工程", "环境科学", "化学", "应用化学", "生物科学", "生物医学工程",
-  "数学与应用数学", "统计学", "物理学", "经济学", "金融学", "会计学", "工商管理",
-  "市场营销", "国际经济与贸易", "财政学", "法学", "行政管理", "社会学", "政治学与行政学",
-  "新闻学", "传播学", "汉语言文学", "英语", "日语", "历史学", "哲学", "教育学", "心理学",
-  "临床医学", "口腔医学", "药学", "护理学", "公共卫生与预防医学", "农学", "园艺学",
-  "艺术设计学", "视觉传达设计", "音乐学", "体育教育",
-];
-
 /** 港澳台没有城市层级，名单也不全，所以提供「手动填写」兜底 */
-const SPECIAL_REGIONS = ["香港", "澳门", "中国台湾地区"];
+const SPECIAL_REGIONS = ["香港特别行政区", "澳门特别行政区", "中国台湾地区"];
 const OVERSEAS = "海外";
 const MANUAL = "__manual__";
 
@@ -55,8 +42,9 @@ export default function ProfileGate({ open, initial, onSubmit }: Props) {
 
   const provinces = useMemo(() => (index ? Object.keys(index).sort((a, b) => a.localeCompare(b, "zh")) : []), [index]);
   const regionOptions = useMemo(() => {
-    const list = provinces.map((item) => (item === "台湾省" ? "中国台湾地区" : item === "香港特别行政区" ? "香港" : item === "澳门特别行政区" ? "澳门" : item));
-    return [...list.filter((item) => !["香港", "澳门", "中国台湾地区"].includes(item)), "香港", "澳门", "中国台湾地区", OVERSEAS];
+    // 数据里叫「台湾省」，界面按用户要求显示为「中国台湾地区」；港澳保留全称
+    const list = provinces.map((item) => (item === "台湾省" ? "中国台湾地区" : item));
+    return [...list, OVERSEAS];
   }, [provinces]);
 
   const cities = useMemo(() => (index && regionKey ? citiesOf(index, regionKey) : []), [index, regionKey]);
@@ -192,15 +180,11 @@ export default function ProfileGate({ open, initial, onSubmit }: Props) {
             <label className="gate-wide">
               <span>专业</span>
               <input
-                list="major-hints"
                 value={major}
                 onChange={(event) => setMajor(event.target.value)}
-                placeholder="如：经济学 / 计算机科学与技术"
+                placeholder="请输入你的专业全名"
                 autoComplete="off"
               />
-              <datalist id="major-hints">
-                {MAJOR_HINTS.map((item) => <option key={item} value={item} />)}
-              </datalist>
             </label>
           </div>
         )}
