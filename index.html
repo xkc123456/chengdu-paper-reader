@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="%230064e6"/><path d="M7 8c4-.5 7 .3 9 2.5v14c-2-2.2-5-3-9-2.5zM25 8c-4-.5-7 .3-9 2.5v14c2-2.2 5-3 9-2.5z" fill="none" stroke="white" stroke-width="1.7" stroke-linejoin="round"/></svg>'>
+<title>澄读 · 论文精读工作台</title>
+<meta name="description" content="导入论文文字、PDF、Word 或截图，生成通俗讲解、主体关系、分栏对照与数据图表。">
+<style>
+/* React 的挂载点不能占一层盒子：body 直接就是 grid 容器，中间多一个 <div id="root">
+   会掐断 height:100% 的参照链，撑满视口的两栏会变成按内容无限长高。 */
+#root{display:contents}
+</style>
+<script>
+/* 必须同步跑在 <body> 之前：等 React 挂载再定主题，用户会先看到一帧另一套配色。
+   顺序是「上次选的 → 系统偏好 → 暗色」。 */
+try{
+  var t = localStorage.getItem('pv-theme')
+  document.documentElement.dataset.theme =
+    t || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+}catch(e){ document.documentElement.dataset.theme = 'dark' }
+</script>
+</head>
+<body>
+<div id="root"></div>
+<script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
