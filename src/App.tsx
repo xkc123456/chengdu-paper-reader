@@ -7,7 +7,7 @@ import type { AnalysisResult } from "@contracts/analysis";
 import { trpc } from "./providers/trpc";
 import { sampleAnalysis, sampleText } from "./lib/sample";
 import { loadKey, saveKey } from "./lib/key";
-import { loadProfile, markSkipped, saveProfile, wasSkipped, type Profile } from "./lib/profile";
+import { loadProfile, saveProfile, type Profile } from "./lib/profile";
 import ProfileGate from "./components/ProfileGate";
 import { ThemeToggle } from "./lib/theme";
 import ImportPanel from "./components/ImportPanel";
@@ -67,9 +67,10 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [isSample, setIsSample] = useState(true);
   const [dirty, setDirty] = useState(false);
-  // 院校信息：首次进入问一次，答过或跳过就不再打扰，右上角可随时补填
+  // 院校信息：首次进入必须填写，填完存本机并上报一份，右上角可修改
   const [profile, setProfile] = useState<Profile | null>(loadProfile);
-  const [gateOpen, setGateOpen] = useState(() => !loadProfile() && !wasSkipped());
+  const [gateOpen, setGateOpen] = useState(() => !loadProfile());
+  const submitProfile = trpc.profile.submit.useMutation();
 
   const analyze = trpc.paper.analyze.useMutation({
     onSuccess: (data) => {
@@ -255,8 +256,12 @@ export default function App() {
       <ProfileGate
         open={gateOpen}
         initial={profile}
-        onSkip={() => { markSkipped(); setGateOpen(false); }}
-        onSubmit={(value) => { saveProfile(value); setProfile(value); setGateOpen(false); }}
+        onSubmit={(value) => {
+          saveProfile(value);
+          setProfile(value);
+          setGateOpen(false);
+          submitProfile.mutate(value);
+        }}
       />
     </div>
   );

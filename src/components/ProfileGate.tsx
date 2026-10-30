@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, GraduationCap, LoaderCircle } from "lucide-react";
 import { citiesOf, loadUniversities, schoolsOf, type UniversityIndex } from "../lib/universities";
-import type { Profile } from "../lib/profile";
+import { DEGREES, REGION_ALIASES, type Degree, type Profile } from "../lib/profile";
 
-// 专业不适合做下拉（本科专业 800+），这里给一份常见专业的建议列表，
-// 用户可以直接选，也可以自己敲——输入框始终是自由文本。
+// 专业不适合做下拉（本科专业 800+），给一份常见专业的建议，用户可自由输入。
 const MAJOR_HINTS = [
   "计算机科学与技术", "软件工程", "人工智能", "数据科学与大数据技术", "网络空间安全",
   "电子信息工程", "通信工程", "自动化", "电气工程及其自动化", "微电子科学与工程",
@@ -17,19 +16,27 @@ const MAJOR_HINTS = [
   "艺术设计学", "视觉传达设计", "音乐学", "体育教育",
 ];
 
+/** 港澳台没有城市层级，名单也不全，所以提供「手动填写」兜底 */
+const SPECIAL_REGIONS = ["香港", "澳门", "中国台湾地区"];
+const OVERSEAS = "海外";
+const MANUAL = "__manual__";
+
 type Props = {
   open: boolean;
   initial: Profile | null;
-  onSkip: () => void;
   onSubmit: (profile: Profile) => void;
 };
 
-export default function ProfileGate({ open, initial, onSkip, onSubmit }: Props) {
+export default function ProfileGate({ open, initial, onSubmit }: Props) {
   const [index, setIndex] = useState<UniversityIndex | null>(null);
-  const [province, setProvince] = useState(initial?.province ?? "");
+  const [region, setRegion] = useState(initial?.region ?? "");
   const [city, setCity] = useState(initial?.city ?? "");
   const [school, setSchool] = useState(initial?.school ?? "");
+  const [manualSchool, setManualSchool] = useState(false);
+  const [college, setCollege] = useState(initial?.college ?? "");
   const [major, setMajor] = useState(initial?.major ?? "");
+  const [degree, setDegree] = useState<Degree | "">((initial?.degree as Degree) ?? "");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!open || index) return;
@@ -42,16 +49,50 @@ export default function ProfileGate({ open, initial, onSkip, onSubmit }: Props) 
     };
   }, [open, index]);
 
+  const isSpecial = SPECIAL_REGIONS.includes(region);
+  const isOverseas = region === OVERSEAS;
+  const regionKey = REGION_ALIASES[region] ?? region;
+
   const provinces = useMemo(() => (index ? Object.keys(index).sort((a, b) => a.localeCompare(b, "zh")) : []), [index]);
-  const cities = useMemo(() => (index && province ? citiesOf(index, province) : []), [index, province]);
-  const schools = useMemo(
-    () => (index && province && city ? schoolsOf(index, province, city) : []),
-    [index, province, city],
-  );
+  const regionOptions = useMemo(() => {
+    const list = provinces.map((item) => (item === "台湾省" ? "中国台湾地区" : item === "香港特别行政区" ? "香港" : item === "澳门特别行政区" ? "澳门" : item));
+    return [...list.filter((item) => !["香港", "澳门", "中国台湾地区"].includes(item)), "香港", "澳门", "中国台湾地区", OVERSEAS];
+  }, [provinces]);
+
+  const cities = useMemo(() => (index && regionKey ? citiesOf(index, regionKey) : []), [index, regionKey]);
+  const schools = useMemo(() => {
+    if (!index || !regionKey) return [];
+    if (isOverseas) return [];
+    if (isSpecial) return schoolsOf(index, regionKey, "其他");
+    return city ? schoolsOf(index, regionKey, city) : [];
+  }, [index, regionKey, city, isSpecial, isOverseas]);
 
   if (!open) return null;
 
-  const ready = Boolean(province && city && school);
+  const showManual = isOverseas || manualSchool;
+  const ready = Boolean(
+    region &&
+      (isOverseas ? true : isSpecial ? true : city) &&
+      school.trim() &&
+      major.trim() &&
+      degree,
+  );
+
+  const submit = () => {
+    if (!ready) {
+      setError("请把地区、学校、专业和学历层次填完。");
+      return;
+    }
+    setError("");
+    onSubmit({
+      region,
+      city: isOverseas || isSpecial ? city.trim() : city,
+      school: school.trim(),
+      college: college.trim(),
+      major: major.trim(),
+      degree: degree as Degree,
+    });
+  };
 
   return (
     <div className="gate-backdrop" role="dialog" aria-modal="true" aria-labelledby="gate-title">
@@ -59,8 +100,8 @@ export default function ProfileGate({ open, initial, onSkip, onSubmit }: Props) 
         <div className="gate-head">
           <span className="gate-icon"><GraduationCap size={20} /></span>
           <div>
-            <h2 id="gate-title">先认识一下你</h2>
-            <p>知道你在哪个学校、读什么专业，讲解的侧重点和示例就能更贴着你来。</p>
+            <h2 id="gate-title">你好，同学！</h2>
+            <p>请输入你的院校和专业，以便我们为你提供更好的服务。</p>
           </div>
         </div>
 
@@ -69,45 +110,87 @@ export default function ProfileGate({ open, initial, onSkip, onSubmit }: Props) 
         ) : (
           <div className="gate-fields">
             <label>
-              <span>省份 / 直辖市</span>
+              <span>地区</span>
               <select
-                value={province}
+                value={region}
                 onChange={(event) => {
-                  setProvince(event.target.value);
+                  setRegion(event.target.value);
                   setCity("");
                   setSchool("");
+                  setManualSchool(false);
                 }}
               >
                 <option value="">请选择</option>
-                {provinces.map((item) => <option key={item} value={item}>{item}</option>)}
+                {regionOptions.map((item) => <option key={item} value={item}>{item}</option>)}
               </select>
             </label>
 
             <label>
-              <span>城市</span>
-              <select
-                value={city}
-                disabled={!province}
-                onChange={(event) => {
-                  setCity(event.target.value);
-                  setSchool("");
-                }}
-              >
-                <option value="">{province ? "请选择" : "先选省份"}</option>
-                {cities.map((item) => <option key={item} value={item}>{item}</option>)}
-              </select>
+              <span>{isOverseas ? "国家 / 地区" : "城市"}</span>
+              {isOverseas ? (
+                <input value={city} onChange={(event) => setCity(event.target.value)} placeholder="如：新加坡 / 英国" />
+              ) : (
+                <select
+                  value={city}
+                  disabled={!region || isSpecial}
+                  onChange={(event) => {
+                    setCity(event.target.value);
+                    setSchool("");
+                    setManualSchool(false);
+                  }}
+                >
+                  <option value="">{!region ? "先选地区" : isSpecial ? "无需选择" : "请选择"}</option>
+                  {cities.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
+              )}
             </label>
 
             <label className="gate-wide">
               <span>学校</span>
-              <select value={school} disabled={!city} onChange={(event) => setSchool(event.target.value)}>
-                <option value="">{city ? (schools.length ? "请选择" : "这个城市没有收录学校，可直接填写") : "先选城市"}</option>
-                {schools.map((item) => <option key={item} value={item}>{item}</option>)}
+              {showManual ? (
+                <input
+                  value={school}
+                  onChange={(event) => setSchool(event.target.value)}
+                  placeholder="请输入学校全名"
+                  autoComplete="off"
+                />
+              ) : (
+                <select
+                  value={school}
+                  disabled={isOverseas || (!isSpecial && !city)}
+                  onChange={(event) => {
+                    if (event.target.value === MANUAL) {
+                      setSchool("");
+                      setManualSchool(true);
+                      return;
+                    }
+                    setSchool(event.target.value);
+                  }}
+                >
+                  <option value="">
+                    {isOverseas ? "请在上方选择" : !isSpecial && !city ? "先选城市" : schools.length ? "请选择" : "可直接填写"}
+                  </option>
+                  {schools.map((item) => <option key={item} value={item}>{item}</option>)}
+                  {isSpecial && <option value={MANUAL}>不在列表里，手动填写</option>}
+                </select>
+              )}
+            </label>
+
+            <label>
+              <span>学院 <small>选填</small></span>
+              <input value={college} onChange={(event) => setCollege(event.target.value)} placeholder="如：经济学院" />
+            </label>
+
+            <label>
+              <span>学历层次</span>
+              <select value={degree} onChange={(event) => setDegree(event.target.value as Degree | "")}>
+                <option value="">请选择</option>
+                {DEGREES.map((item) => <option key={item} value={item}>{item}</option>)}
               </select>
             </label>
 
             <label className="gate-wide">
-              <span>专业 <small>选填</small></span>
+              <span>专业</span>
               <input
                 list="major-hints"
                 value={major}
@@ -122,17 +205,10 @@ export default function ProfileGate({ open, initial, onSkip, onSubmit }: Props) 
           </div>
         )}
 
-        <p className="gate-note">
-          这些信息只保存在你自己的浏览器里，不会上传，也不收集姓名和手机号。填完随时可以在右上角修改。
-        </p>
+        {error && <p className="gate-error" role="alert">{error}</p>}
 
         <div className="gate-actions">
-          <button className="text-button gate-skip" onClick={onSkip}>先跳过</button>
-          <button
-            className="primary-button"
-            disabled={!ready}
-            onClick={() => onSubmit({ province, city, school, major: major.trim() })}
-          >
+          <button className="primary-button gate-submit" disabled={!ready} onClick={submit}>
             进入工作台<ArrowRight size={16} />
           </button>
         </div>

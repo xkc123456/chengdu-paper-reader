@@ -17,8 +17,8 @@ export default {
   async fetch(request: Request, env: WorkerEnv): Promise<Response> {
     const { pathname } = new URL(request.url);
     if (pathname === "/api" || pathname.startsWith("/api/")) {
-      // 中间件只用到 request，没有读 c.env，所以不必把 Workers 的 env 透传进 Hono
-      return app.fetch(request);
+      // env 要透传进去：tRPC 上下文靠它拿 KV 绑定（profile 上报）
+      return app.fetch(request, env as unknown as Parameters<typeof app.fetch>[1]);
     }
     return env.ASSETS.fetch(request);
   },

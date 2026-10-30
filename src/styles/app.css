@@ -415,7 +415,7 @@ footer > div a:hover { color: var(--accent); }
   *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
 }
 
-/* ©¤©¤ Ê×´Î½øÈë£ºÔºÐ£ÐÅÏ¢¿¨Æ¬ ©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤ */
+/* â”€â”€ é¦–æ¬¡è¿›å…¥ï¼šé™¢æ ¡ä¿¡æ¯å¡ç‰‡ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .profile-chip { max-width: 240px; min-height: 36px; padding: 0 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--muted); font-size: 12px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: border-color var(--fast), color var(--fast); }
 .profile-chip:hover { border-color: var(--accent); color: var(--accent); }
 
@@ -433,10 +433,9 @@ footer > div a:hover { color: var(--accent); }
 .gate-fields select, .gate-fields input { min-height: 42px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); font-size: 13px; }
 .gate-fields select:disabled { opacity: .55; }
 .gate-fields select:focus, .gate-fields input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-.gate-note { margin-top: 16px; color: var(--faint); font-size: 11px; line-height: 1.7; }
-.gate-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; }
-.gate-skip { color: var(--faint); }
-.gate-actions .primary-button { min-height: 44px; }
+.gate-error { margin-top: 14px; color: var(--warm); font-size: 12px; }
+.gate-actions { display: flex; align-items: center; gap: 12px; margin-top: 22px; }
+.gate-submit { width: 100%; min-height: 46px; }
 
 @media (max-width: 760px) {
   .gate-backdrop { padding: 14px; align-items: flex-end; }

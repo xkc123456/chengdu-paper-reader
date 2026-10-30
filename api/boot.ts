@@ -3,7 +3,7 @@ import { bodyLimit } from "hono/body-limit";
 import type { HttpBindings } from "@hono/node-server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
-import { createContext } from "./context";
+import { createContext, type WorkerBindings } from "./context";
 import { log } from "./lib/logger";
 import { handleClientLog } from "./lib/clientlog";
 import { REQUEST_ID_HEADER, runWithRequestId } from "./lib/requestcontext";
@@ -61,7 +61,8 @@ app.use("/api/trpc/*", async (c) => {
     endpoint: "/api/trpc",
     req: c.req.raw,
     router: appRouter,
-    createContext,
+    // 把 Workers 的绑定透传给 tRPC 上下文（Node 下 c.env 是空的，KV 上报会自动降级成日志）
+    createContext: (opts) => createContext(opts, c.env as unknown as WorkerBindings),
   });
 });
 // Browser-side log sink (see lib/clientlog.ts). Must be registered before the
