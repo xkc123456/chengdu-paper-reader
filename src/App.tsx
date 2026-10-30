@@ -7,6 +7,8 @@ import type { AnalysisResult } from "@contracts/analysis";
 import { trpc } from "./providers/trpc";
 import { sampleAnalysis, sampleText } from "./lib/sample";
 import { loadKey, saveKey } from "./lib/key";
+import { loadProfile, markSkipped, saveProfile, wasSkipped, type Profile } from "./lib/profile";
+import ProfileGate from "./components/ProfileGate";
 import { ThemeToggle } from "./lib/theme";
 import ImportPanel from "./components/ImportPanel";
 import RelationshipGraph from "./components/RelationshipGraph";
@@ -65,6 +67,9 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [isSample, setIsSample] = useState(true);
   const [dirty, setDirty] = useState(false);
+  // 院校信息：首次进入问一次，答过或跳过就不再打扰，右上角可随时补填
+  const [profile, setProfile] = useState<Profile | null>(loadProfile);
+  const [gateOpen, setGateOpen] = useState(() => !loadProfile() && !wasSkipped());
 
   const analyze = trpc.paper.analyze.useMutation({
     onSuccess: (data) => {
@@ -105,7 +110,14 @@ export default function App() {
         <nav aria-label="主导航">
           <a href="#workbench">精读工作台</a><a href="#method">如何读</a><a href="#boundaries">使用边界</a>
         </nav>
-        <div className="header-actions"><ThemeToggle /><a className="header-cta" href="#import">导入论文<ArrowDown size={15} /></a></div>
+        <div className="header-actions">
+          {profile && (
+            <button className="profile-chip" onClick={() => setGateOpen(true)} title="修改我的院校与专业">
+              {profile.school}{profile.major ? ` · ${profile.major}` : ""}
+            </button>
+          )}
+          <ThemeToggle /><a className="header-cta" href="#import">导入论文<ArrowDown size={15} /></a>
+        </div>
       </header>
 
       <main>
@@ -239,6 +251,13 @@ export default function App() {
       </main>
 
       <footer><a className="brand footer-brand" href="#top"><BrandMark /><span>澄读</span></a><p>把复杂的论文，读成清楚的知识。</p><div><a href="#workbench">工作台</a><a href="#method">阅读方法</a><a href="#boundaries">使用边界</a></div></footer>
+
+      <ProfileGate
+        open={gateOpen}
+        initial={profile}
+        onSkip={() => { markSkipped(); setGateOpen(false); }}
+        onSubmit={(value) => { saveProfile(value); setProfile(value); setGateOpen(false); }}
+      />
     </div>
   );
 }
