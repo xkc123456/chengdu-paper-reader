@@ -6,6 +6,7 @@ import {
 import type { AnalysisResult } from "@contracts/analysis";
 import { trpc } from "./providers/trpc";
 import { sampleAnalysis, sampleText } from "./lib/sample";
+import { loadKey, saveKey } from "./lib/key";
 import { ThemeToggle } from "./lib/theme";
 import ImportPanel from "./components/ImportPanel";
 import RelationshipGraph from "./components/RelationshipGraph";
@@ -58,7 +59,7 @@ export default function App() {
   const [text, setTextState] = useState(sampleText);
   const [result, setResult] = useState<AnalysisResult>(sampleAnalysis);
   const [tab, setTab] = useState<Tab>("guide");
-  const [focus, setFocus] = useState("自动");
+  const [apiKey, setApiKeyState] = useState(loadKey);
   const [activeSection, setActiveSection] = useState(0);
   const [selectedChart, setSelectedChart] = useState(0);
   const [query, setQuery] = useState("");
@@ -78,6 +79,8 @@ export default function App() {
   });
 
   const setText = (value: string) => { setTextState(value); setDirty(true); };
+  // Key 跟着浏览器走：只在本机保存，服务端不持久化（见 src/lib/key.ts）
+  const setApiKey = (value: string) => { setApiKeyState(value); saveKey(value); };
   const loadSample = () => {
     setTextState(sampleText);
     setResult(sampleAnalysis);
@@ -108,7 +111,7 @@ export default function App() {
       <main>
         <section className="hero" id="top">
           <div className="hero-copy">
-            <div className="hero-kicker"><span>本科生论文精读工作台</span><i />经管 · 法律 · 软件</div>
+            <div className="hero-kicker"><span>本科生论文精读工作台</span><i />任何学科，任何论文</div>
             <h1>把论文读成<br />一堂<em>听得懂</em>的课。</h1>
             <p className="hero-lead">不止总结摘要。澄读把研究问题、作用机制、主体关系和证据逐层拆开，再用老师能讲明白、你能复述的话讲给你听。</p>
             <div className="hero-proof">
@@ -121,11 +124,11 @@ export default function App() {
           <ImportPanel
             text={text}
             setText={setText}
-            onAnalyze={() => analyze.mutate({ text: text.trim(), focus: focus as "自动" | "经管" | "法律" | "人工智能与电子信息" })}
+            onAnalyze={() => analyze.mutate({ text: text.trim(), apiKey: apiKey || undefined })}
             pending={analyze.isPending}
             error={analyze.error?.message ?? ""}
-            focus={focus}
-            setFocus={setFocus}
+            apiKey={apiKey}
+            setApiKey={setApiKey}
           />
         </section>
 
@@ -219,12 +222,12 @@ export default function App() {
         </section>
 
         <section className="method-section" id="method">
-          <div className="method-intro"><span className="eyebrow">A BETTER READING ORDER · 03</span><h2>读懂，不等于把每句话<br />都翻译一遍。</h2><p>真正有效的精读，是先建立结构，再补细节。澄读按学科把这条阅读路线固定下来。</p></div>
+          <div className="method-intro"><span className="eyebrow">A BETTER READING ORDER · 03</span><h2>读懂，不等于把每句话<br />都翻译一遍。</h2><p>真正有效的精读，是先建立结构，再补细节。不同论文值得追问的东西不一样，澄读先认出它属于哪一类，再按那一类的规矩拆。</p></div>
           <div className="method-table">
-            <div className="method-row head"><span>学科</span><span>先问什么</span><span>重点拆什么</span></div>
-            <div className="method-row"><b>经管</b><span>X 为什么会影响 Y？</span><span>变量、机制、数据、异质性、因果边界</span></div>
-            <div className="method-row"><b>法律</b><span>谁在什么条件下承担什么责任？</span><span>主体、要件、权利义务、例外、适用环节</span></div>
-            <div className="method-row"><b>软件与 AI</b><span>这个方法解决了什么瓶颈？</span><span>架构、数据流、算法、实验、复杂度</span></div>
+            <div className="method-row head"><span>论文类型</span><span>先问什么</span><span>重点拆什么</span></div>
+            <div className="method-row"><b>实证研究</b><span>X 真的影响了 Y 吗，凭什么说不是巧合？</span><span>变量与度量、识别策略、样本与数据、异质性、因果边界</span></div>
+            <div className="method-row"><b>规范研究</b><span>谁在什么条件下承担什么责任？</span><span>主体、构成要件、权利义务、例外、适用环节、论证结构</span></div>
+            <div className="method-row"><b>系统与实验</b><span>这个方法解决了什么瓶颈，代价是什么？</span><span>问题定义、架构、数据流、算法、实验设置与消融</span></div>
           </div>
         </section>
 

@@ -19,7 +19,7 @@ export const sampleText = `【教学示例，并非真实发表论文】数字�
 
 export const sampleAnalysis: AnalysisResult = {
   title: "数字金融与中小企业融资约束",
-  field: "经管",
+  field: "经济学",
   oneSentence: "这篇示例想说明：数字工具把“看不见的经营状况”变成可验证的数据，从而让缺抵押物的中小企业更容易获得贷款。",
   researchQuestion: "数字金融能否缓解中小企业融资约束？这种作用通过什么机制发生，又对哪些企业更明显？",
   coreClaim: "数字金融可能通过数据增信和降低服务成本缓解融资约束，且对抵押物不足、银行网点稀缺地区的企业帮助更大。",

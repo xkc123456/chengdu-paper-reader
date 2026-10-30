@@ -2,6 +2,7 @@ import { initTRPC } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
 import { log } from "./lib/logger";
+import { env } from "./lib/env";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
@@ -22,9 +23,11 @@ const t = initTRPC.context<TrpcContext>().create({
         stack: error.stack,
       });
     }
+    // 生产环境不把调用栈回传给浏览器：tRPC 的 shape 默认带 stack，
+    // 公开站点上那等于把服务器目录结构摊给所有人看。日志里仍然有。
+    if (env.isProduction) delete shape.data.stack;
     return shape;
   },
 });
-
 export const createRouter = t.router;
 export const publicQuery = t.procedure;

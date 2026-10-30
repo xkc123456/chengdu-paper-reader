@@ -2,7 +2,9 @@ import { z } from "zod";
 
 export const analysisSchema = z.object({
   title: z.string(),
-  field: z.enum(["经管", "法律", "人工智能与电子信息", "其他"]),
+  // 学科只作为「模型自己判断出的短标签」展示，不再限定成固定几门学科：
+  // 页面要适配任何专业的论文，而不是把某几个专业名写进产品设定里。
+  field: z.string().min(1).max(12),
   oneSentence: z.string(),
   researchQuestion: z.string(),
   coreClaim: z.string(),

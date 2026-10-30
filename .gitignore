@@ -23,3 +23,7 @@ coverage/
 # Logs
 *.log
 node_modules
+
+# Runtime data (logs)
+.data/
+

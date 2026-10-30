@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { CircleAlert, FileText, FileUp, Image, LoaderCircle, LockKeyhole, ScanText, Sparkles, X } from "lucide-react";
+import {
+  CircleAlert, FileText, FileUp, Image, KeyRound, LoaderCircle, LockKeyhole,
+  ScanText, ShieldCheck, Sparkles, X,
+} from "lucide-react";
 import { recognizeFile } from "../lib/extract";
+import { maskKey } from "../lib/key";
 
 type Mode = "text" | "document" | "screenshot";
 type Props = {
@@ -9,11 +13,11 @@ type Props = {
   onAnalyze: () => void;
   pending: boolean;
   error: string;
-  focus: string;
-  setFocus: (value: string) => void;
+  apiKey: string;
+  setApiKey: (value: string) => void;
 };
 
-export default function ImportPanel({ text, setText, onAnalyze, pending, error, focus, setFocus }: Props) {
+export default function ImportPanel({ text, setText, onAnalyze, pending, error, apiKey, setApiKey }: Props) {
   const [mode, setMode] = useState<Mode>("text");
   const [recognizing, setRecognizing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -116,14 +120,32 @@ export default function ImportPanel({ text, setText, onAnalyze, pending, error, 
         )}
       </div>
 
-      <div className="analyze-options">
-        <label>学科侧重
-          <select value={focus} onChange={(event) => setFocus(event.target.value)}>
-            <option>自动</option><option>经管</option><option>法律</option><option>人工智能与电子信息</option>
-          </select>
+      <div className="key-panel">
+        <label className="key-field">
+          <KeyRound size={15} />
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(event) => setApiKey(event.target.value.replace(/\s/g, ""))}
+            placeholder="粘贴你自己的 API Key（DeepSeek 以 sk- 开头）"
+            autoComplete="off"
+            spellCheck={false}
+            aria-label="我的 API Key"
+          />
+          {apiKey && <button type="button" className="key-clear" onClick={() => setApiKey("")}>清除</button>}
         </label>
-        <span className={`character-count ${text.length >= 80 ? "ready" : ""}`}>{text.length.toLocaleString()} / 60,000 字符</span>
+        <p className="key-hint">
+          <ShieldCheck size={13} />
+          <span>
+            {apiKey
+              ? <>已保存在本机浏览器（{maskKey(apiKey)}），换台设备需要重新填写。</>
+              : <>本站不替访客承担模型费用，解析用的是你自己的 Key。</>}
+            {" "}Key 只在你点击解析时随请求转发给模型，不写入数据库、不进日志。
+            <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noreferrer">去获取</a>
+          </span>
+        </p>
       </div>
+
       {(localError || error) && <div className="form-error" role="alert"><CircleAlert size={17} /><span>{localError || error}</span></div>}
       <div className="analyze-row">
         <button className="primary-button analyze-button" disabled={pending || recognizing || text.trim().length < 80} onClick={onAnalyze}>
@@ -132,7 +154,7 @@ export default function ImportPanel({ text, setText, onAnalyze, pending, error, 
         </button>
         {text && !pending && <button className="icon-button clear-button" aria-label="清空论文文字" onClick={() => { setText(""); setFileName(""); setStatus(""); setWarning(""); setPreview(""); }}><X size={17} /></button>}
       </div>
-      <p className="quota-note">AI 解析会消耗站点额度；长文耗时更久。识别后可先校对，避免重复调用。</p>
+      <p className="quota-note">{text.length.toLocaleString()} / 60,000 字符 · 长文耗时更久，识别后可先校对再解析，避免重复调用</p>
       {pending && (
         <div className="analysis-progress" aria-live="polite">
           <div className="thinking-line"><i /><i /><i /></div>
