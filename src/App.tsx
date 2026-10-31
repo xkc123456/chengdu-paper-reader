@@ -327,7 +327,7 @@ export default function App() {
             <p>这篇的解析结果和原文会保存到服务器，方便你在其他设备打开。保存后你可以随时删除；如果内容涉嫌侵权或违法，站长也会下架。</p>
             <label className="consent-check">
               <input type="checkbox" checked={consentChecked} onChange={(event) => setConsentChecked(event.target.checked)} />
-              <span>我确认对这篇论文有合法使用权，内容不含违法或侵权信息，并已阅读同意《用户协议》与《隐私政策》。</span>
+              <span>我确认对这篇论文有合法使用权，内容不含违法或侵权信息；我已在进入网站时同意《用户协议》，在此再次确认。</span>
             </label>
             <div className="consent-actions">
               <button className="secondary-button" onClick={() => setConsentOpen(false)}>取消</button>
