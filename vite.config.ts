@@ -2,12 +2,23 @@ import devServer from "@hono/vite-dev-server"
 import path from "path"
 const __dirname = import.meta.dirname
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
+import { injectHomeStaticHtml } from "./src/homeStaticHtml"
+
+function homeStaticBody(): Plugin {
+  return {
+    name: "home-static-body",
+    transformIndexHtml(html) {
+      return injectHomeStaticHtml(html)
+    },
+  }
+}
 
 export default defineConfig({
   plugins: [
     devServer({ entry: "api/boot.ts", exclude: [/^\/(?!api\/).*$/] }),
-    react()],
+    react(),
+    homeStaticBody()],
   envDir: path.resolve(__dirname),
   resolve: {
     alias: {
