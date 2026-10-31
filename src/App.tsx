@@ -11,6 +11,7 @@ import { loadProfile, saveProfile, type Profile } from "./lib/profile";
 import LockedScreen from "./components/LockedScreen";
 import ProfileGate from "./components/ProfileGate";
 import { ThemeToggle } from "./lib/theme";
+import FaqSection from "./components/FaqSection";
 import ImportPanel from "./components/ImportPanel";
 import RelationshipGraph from "./components/RelationshipGraph";
 import DataChart from "./components/DataChart";
@@ -121,7 +122,7 @@ export default function App() {
       <header className="site-header">
         <a className="brand" href="#top" aria-label="澄读首页"><BrandMark /><span>澄读</span><small>PAPER, MADE CLEAR</small></a>
         <nav aria-label="主导航">
-          <a href="#workbench">精读工作台</a><a href="#method">如何读</a><a href="#boundaries">使用边界</a>
+          <a href="#workbench">精读工作台</a><a href="#method">如何读</a><a href="#faq">使用边界</a>
         </nav>
         <div className="header-actions">
           {profile && (
@@ -247,7 +248,7 @@ export default function App() {
         </section>
 
         <section className="method-section" id="method">
-          <div className="method-intro"><span className="eyebrow">A BETTER READING ORDER · 03</span><h2>读懂，不等于把每句话<br />都翻译一遍。</h2><p>真正有效的精读，是先建立结构，再补细节。不同论文值得追问的东西不一样，澄读先认出它属于哪一类，再按那一类的规矩拆。</p></div>
+          <div className="method-intro"><h2>读懂，不等于把每句话<br />都翻译一遍。</h2><p>真正有效的精读，是先建立结构，再补细节。</p></div>
           <div className="method-table">
             <div className="method-row head"><span>论文类型</span><span>先问什么</span><span>重点拆什么</span></div>
             <div className="method-row"><b>实证研究</b><span>X 真的影响了 Y 吗，凭什么说不是巧合？</span><span>变量与度量、识别策略、样本与数据、异质性、因果边界</span></div>
@@ -256,14 +257,10 @@ export default function App() {
           </div>
         </section>
 
-        <section className="boundaries-section" id="boundaries">
-          <div><span className="eyebrow">HONEST BY DESIGN · 04</span><h2>它可以带你入门，<br />但不能替你判断。</h2></div>
-          <div className="boundary-list"><p><b>不编造图表。</b>原文没有数字，就不生成数据图。</p><p><b>不把推断写成结论。</b>关系与机制仍需回到原文核对。</p><p><b>不替代表格与公式校对。</b>OCR 可能误识别上下标、符号和复杂排版。</p></div>
-          <a href="#import" className="primary-button final-cta">导入我的论文<ArrowRight size={17} /></a>
-        </section>
+        <FaqSection />
       </main>
 
-      <footer><a className="brand footer-brand" href="#top"><BrandMark /><span>澄读</span></a><p>把复杂的论文，读成清楚的知识。</p><div><a href="#workbench">工作台</a><a href="#method">阅读方法</a><a href="#boundaries">使用边界</a></div></footer>
+      <footer><a className="brand footer-brand" href="#top"><BrandMark /><span>澄读</span></a><p>把复杂的论文，读成清楚的知识。</p><div><a href="#workbench">工作台</a><a href="#method">阅读方法</a><a href="#faq">使用边界</a></div></footer>
 
       <ProfileGate
         open={gateOpen}
