@@ -15,13 +15,30 @@ export default function DataChart({ chart }: { chart: Chart }) {
   const geometry = useMemo(() => {
     const minValue = Math.min(...values);
     const maxValue = Math.max(...values);
-    const min = chart.type === "bar" ? Math.min(0, minValue) : minValue - (maxValue - minValue || 1) * 0.18;
-    const max = maxValue + (maxValue - minValue || 1) * 0.12;
-    return { min, max, range: max - min || 1 };
+    // 「好看刻度」算法：步长取 1/2/2.5/5 × 10ⁿ，上下界向步长取整。
+    // 直接均分数据范围会得到 5.02 / 4.43 这种没法读的刻度——教学场景下
+    // 读者要能用刻度心算数值，刻度本身必须友好。
+    const span = maxValue - minValue || 1;
+    const roughStep = span / 4;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
+    const normalized = roughStep / magnitude;
+    const step = (normalized >= 5 ? 5 : normalized >= 2.5 ? 2.5 : normalized >= 2 ? 2 : 1) * magnitude;
+    const paddedMin = chart.type === "bar" ? Math.min(0, minValue) : minValue - span * 0.1;
+    const paddedMax = maxValue + span * 0.1;
+    const min = Math.floor(paddedMin / step) * step;
+    const max = Math.ceil(paddedMax / step) * step;
+    return { min, max, range: max - min || 1, step };
   }, [chart.type, values.join(",")]);
   const x = (index: number) => 76 + (index / Math.max(chart.labels.length - 1, 1)) * 626;
   const y = (value: number) => 258 - ((value - geometry.min) / geometry.range) * 208;
-  const ticks = Array.from({ length: 5 }, (_, index) => geometry.min + (geometry.range / 4) * index).reverse();
+  const ticks: number[] = [];
+  for (let tick = geometry.min; tick <= geometry.max + geometry.step / 2; tick += geometry.step) {
+    // 浮点累加会漂（0.1+0.2 问题），回到步长网格上再入列
+    ticks.push(Number(tick.toFixed(6)));
+  }
+  // 刻度最多 8 条：步长太小宁可合并，不要把轴挤成梳子
+  const tickStride = Math.max(1, Math.ceil(ticks.length / 8));
+  const visibleTicks = ticks.filter((_, index) => index % tickStride === 0);
 
   return (
     <figure className="chart-figure">
@@ -35,7 +52,7 @@ export default function DataChart({ chart }: { chart: Chart }) {
         {safeSeries.map((series, index) => <span key={series.name}><i style={{ background: COLORS[index % COLORS.length] }} />{series.name}</span>)}
       </div>
       <svg className="data-chart" viewBox="0 0 760 320" role="img" aria-label={`${chart.title}，${chart.yLabel}`}>
-        {ticks.map((tick) => (
+        {visibleTicks.map((tick) => (
           <g key={tick}>
             <line x1="76" x2="702" y1={y(tick)} y2={y(tick)} className="chart-grid" />
             <text x="64" y={y(tick) + 4} textAnchor="end" className="chart-tick">{Number(tick.toFixed(2))}</text>

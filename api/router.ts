@@ -1,6 +1,8 @@
 import { createRouter, publicQuery } from "./middleware";
 import { paperRouter } from "./paperRouter";
 import { profileRouter } from "./profileRouter";
+import { consentRouter } from "./consentRouter";
+import { archiveRouter } from "./archiveRouter";
 import { readLock } from "./lib/lock";
 
 export const appRouter = createRouter({
@@ -11,6 +13,8 @@ export const appRouter = createRouter({
   }),
   paper: paperRouter,
   profile: profileRouter,
+  consent: consentRouter,
+  archive: archiveRouter,
 });
 
 export type AppRouter = typeof appRouter;

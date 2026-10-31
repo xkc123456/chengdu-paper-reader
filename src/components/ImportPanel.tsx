@@ -66,8 +66,8 @@ export default function ImportPanel({ text, setText, onAnalyze, pending, error, 
   return (
     <section className="import-panel" id="import" aria-label="导入论文">
       <div className="import-topline">
-        <div><span className="step-index">01</span><h2>把你的论文放进来</h2></div>
-        <span className="privacy"><LockKeyhole size={13} />当次处理，不建阅读档案</span>
+        <div><h2>把你的论文放进来</h2></div>
+        <span className="privacy"><LockKeyhole size={13} />经你同意可存入阅读档案，随时可删</span>
       </div>
       <div className="import-tabs" role="tablist" aria-label="导入方式">
         <button role="tab" aria-selected={mode === "text"} className={mode === "text" ? "active" : ""} onClick={() => setMode("text")}><FileText size={16} />粘贴文字</button>
@@ -127,7 +127,7 @@ export default function ImportPanel({ text, setText, onAnalyze, pending, error, 
             type="password"
             value={apiKey}
             onChange={(event) => setApiKey(event.target.value.replace(/\s/g, ""))}
-            placeholder="粘贴你自己的 API Key（DeepSeek 以 sk- 开头）"
+            placeholder="粘贴你的 API Key（DeepSeek、OpenAI 等，通常 sk- 开头）"
             autoComplete="off"
             spellCheck={false}
             aria-label="我的 API Key"
@@ -140,8 +140,8 @@ export default function ImportPanel({ text, setText, onAnalyze, pending, error, 
             {apiKey
               ? <>已保存在本机浏览器（{maskKey(apiKey)}），换台设备需要重新填写。</>
               : <>本站不替访客承担模型费用，解析用的是你自己的 Key。</>}
-            {" "}Key 只在你点击解析时随请求转发给模型，不写入数据库、不进日志。
-            <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noreferrer">去获取</a>
+            {" "}Key 仅供单次使用：仅随本次解析请求转发给你选用的模型服务商，不存储、不写日志、用完即弃。
+            <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noreferrer">去获取（以 DeepSeek 为例）</a>
           </span>
         </p>
       </div>

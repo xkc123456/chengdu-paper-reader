@@ -64,7 +64,7 @@ function resolveApiKey(visitorKey: string | undefined): { apiKey: string; source
   throw new TRPCError({
     code: "PRECONDITION_FAILED",
     message:
-      "请先填入你自己的 API Key。本站不替访客承担模型调用费用——在 DeepSeek 控制台创建 Key 后粘贴到“我的 API Key”即可，费用按你自己账户的实际用量结算。",
+      "请先填入你自己的 API Key。本站不替访客承担模型调用费用——在你的模型服务商控制台（如 DeepSeek、OpenAI）创建 Key 后粘贴到“我的 API Key”即可，费用按你自己账户的实际用量结算。",
   });
 }
 

@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowDown, ArrowRight, BookOpen, ChartNoAxesCombined, Check, ChevronRight,
+  ArrowDown, ArrowRight, BookMarked, BookOpen, ChartNoAxesCombined, Check, ChevronRight,
   Columns3, Download, FileText, GraduationCap, Lightbulb, Network, Search,
 } from "lucide-react";
 import type { AnalysisResult } from "@contracts/analysis";
@@ -8,8 +8,13 @@ import { trpc } from "./providers/trpc";
 import { sampleAnalysis, sampleText } from "./lib/sample";
 import { loadKey, saveKey } from "./lib/key";
 import { loadProfile, saveProfile, type Profile } from "./lib/profile";
+import { getVisitorId, hasConsent, isProfileSkipped } from "./lib/visitor";
 import LockedScreen from "./components/LockedScreen";
 import ProfileGate from "./components/ProfileGate";
+import ConsentGate from "./components/ConsentGate";
+import LegalPage from "./components/LegalPage";
+import ArchiveDrawer from "./components/ArchiveDrawer";
+import { legalDocs, type LegalDoc } from "./legalCopy";
 import { ThemeToggle } from "./lib/theme";
 import FaqSection from "./components/FaqSection";
 import { homeCopy } from "./homeCopy";
@@ -70,10 +75,73 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [isSample, setIsSample] = useState(true);
   const [dirty, setDirty] = useState(false);
-  // 院校信息：首次进入必须填写，填完存本机并上报一份，右上角可修改
+  // 院校信息：首次进入可填可跳过，填完存本机并上报一份，右上角可修改
   const [profile, setProfile] = useState<Profile | null>(loadProfile);
-  const [gateOpen, setGateOpen] = useState(() => !loadProfile());
+  const [gateOpen, setGateOpen] = useState(() => !loadProfile() && !isProfileSkipped());
   const submitProfile = trpc.profile.submit.useMutation();
+  // 同意门：未同意（或政策升版）时挡住整个站点；同意后写本机 + 上报存证
+  const [consented, setConsented] = useState(hasConsent);
+  // 站内法律文本页：#/privacy、#/terms，深链接可直接打开
+  const [legalDoc, setLegalDoc] = useState<LegalDoc["id"] | null>(() =>
+    window.location.hash === "#/privacy" ? "privacy" : window.location.hash === "#/terms" ? "terms" : null,
+  );
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveNotice, setArchiveNotice] = useState("");
+  const saveArchive = trpc.archive.save.useMutation();
+  const utils = trpc.useUtils();
+
+  useEffect(() => {
+    const sync = () =>
+      setLegalDoc(window.location.hash === "#/privacy" ? "privacy" : window.location.hash === "#/terms" ? "terms" : null);
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
+
+  const openLegal = (doc: LegalDoc["id"]) => {
+    window.location.hash = `/${doc}`;
+    setLegalDoc(doc);
+  };
+  const closeLegal = () => {
+    window.location.hash = "";
+    setLegalDoc(null);
+  };
+
+  const handleSaveArchive = async () => {
+    setArchiveNotice("");
+    const saved = await saveArchive.mutateAsync({
+      visitorId: getVisitorId(),
+      title: result.title,
+      field: result.field,
+      text: text.trim(),
+      result,
+    });
+    setArchiveNotice(
+      saved.ok
+        ? "已存入阅读档案"
+        : saved.reason === "full"
+          ? "档案已满（20 篇），请先在阅读档案里删除几篇"
+          : saved.reason === "unsupported"
+            ? "当前环境未开启档案存储"
+            : "保存失败，请稍后重试",
+    );
+  };
+
+  const handleLoadArchive = async (id: string) => {
+    const loaded = await utils.archive.get.fetch({ visitorId: getVisitorId(), id });
+    if (!loaded.ok) {
+      setArchiveNotice("这篇存档读取失败，可能已被删除。");
+      return;
+    }
+    setTextState(loaded.item.text);
+    setResult(loaded.item.result);
+    setIsSample(false);
+    setDirty(false);
+    setTab("guide");
+    setActiveSection(0);
+    setSelectedChart(0);
+    setArchiveOpen(false);
+    window.setTimeout(() => document.getElementById("workbench")?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+  };
   // 站点暂停开关：每 60 秒查一次，站长在后台一关，访客这边最多一分钟就看到暂停页
   const siteStatus = trpc.site.status.useQuery(undefined, {
     refetchInterval: 60_000,
@@ -126,6 +194,9 @@ export default function App() {
           <a href="#workbench">精读工作台</a><a href="#method">如何读</a><a href="#faq">使用边界</a>
         </nav>
         <div className="header-actions">
+          <button className="profile-chip" onClick={() => setArchiveOpen(true)} title="我的阅读档案">
+            <BookMarked size={14} />阅读档案
+          </button>
           {profile && (
             <button className="profile-chip" onClick={() => setGateOpen(true)} title="修改我的院校与专业">
               {profile.school}{profile.major ? ` · ${profile.major}` : ""}
@@ -176,6 +247,8 @@ export default function App() {
               {dirty && <span className="dirty-badge">原文已修改，待重新解析</span>}
               <button className="secondary-button" onClick={loadSample}>重置示例</button>
               <button className="secondary-button" onClick={() => downloadNotes(result)}><Download size={16} />导出笔记</button>
+              <button className="secondary-button" disabled={saveArchive.isPending} onClick={() => void handleSaveArchive()}><BookMarked size={16} />存入档案</button>
+              {archiveNotice && <span className="archive-notice" role="status">{archiveNotice}</span>}
             </div>
           </div>
 
@@ -260,10 +333,21 @@ export default function App() {
         <FaqSection />
       </main>
 
-      <footer><a className="brand footer-brand" href="#top"><BrandMark /><span>{homeCopy.brand}</span></a><p>{homeCopy.footer}</p><div><a href="#workbench">工作台</a><a href="#method">阅读方法</a><a href="#faq">使用边界</a></div></footer>
+      <footer>
+        <a className="brand footer-brand" href="#top"><BrandMark /><span>{homeCopy.brand}</span></a>
+        <p>{homeCopy.footer}</p>
+        <div>
+          <a href="#workbench">工作台</a><a href="#method">阅读方法</a><a href="#faq">使用边界</a>
+          <a href="#/privacy" onClick={(event) => { event.preventDefault(); openLegal("privacy"); }}>隐私政策</a>
+          <a href="#/terms" onClick={(event) => { event.preventDefault(); openLegal("terms"); }}>用户协议</a>
+        </div>
+      </footer>
 
+      {!consented && <ConsentGate onAgree={() => setConsented(true)} onOpenLegal={openLegal} />}
+      {legalDoc && <LegalPage doc={legalDocs[legalDoc]} onClose={closeLegal} />}
+      <ArchiveDrawer open={archiveOpen} onClose={() => setArchiveOpen(false)} onLoad={(id) => void handleLoadArchive(id)} />
       <ProfileGate
-        open={gateOpen}
+        open={consented && gateOpen}
         initial={profile}
         onSubmit={(value) => {
           saveProfile(value);
@@ -271,6 +355,7 @@ export default function App() {
           setGateOpen(false);
           submitProfile.mutate(value);
         }}
+        onSkip={() => setGateOpen(false)}
       />
     </div>
   );
