@@ -1,0 +1,128 @@
+// 后台的「论文云存档」区块：列表、查看、一键下架、下架日志。
+//
+// 设计原则：
+//   - 列表只扫 m: 元信息，不把正文全拉出来
+//   - 查看单篇才读 a: 全文
+//   - 下架 = 真删（a: 与 m: 都删），再写一条不含正文的日志 t:
+import type { ArchiveStore } from "./archives";
+import { getArchive, listArchives, listTakedowns, takedownArchive } from "./archives";
+import { removeShareByArchive, shareIdForArchive, type ShareStore } from "./shares";
+
+export interface ArchiveAdminContext {
+  req: {
+    query(name: string): string | undefined;
+    parseBody?(): Promise<Record<string, unknown>>;
+  };
+  html(body: string, status?: number): Response;
+  text(body: string, status?: number): Response;
+  redirect(location: string, status?: number): Response;
+}
+
+function esc(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function kb(size: number): string {
+  return size > 1024 * 1024 ? `${(size / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(size / 1024))} KB`;
+}
+
+/**
+ * 处理 `view` / `delete` 两种动作。没有动作时返回 null，让调用方继续渲染列表页。
+ */
+export async function handleArchiveAdmin(
+  c: ArchiveAdminContext,
+  store: ArchiveStore | undefined,
+  key: string,
+  shareStore?: ShareStore,
+): Promise<Response | null> {
+  if (!store) return null;
+
+  const view = c.req.query("view");
+  if (view) {
+    const record = await getArchive(store, view);
+    if (!record) return c.text("Not Found", 404);
+    const text = record.paper.sourceText ?? "";
+    const shareId = shareStore ? await shareIdForArchive(shareStore, view) : null;
+    const html = `<!doctype html><html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(record.title)} · 存档详情</title>
+<style>
+  body{margin:0;padding:28px;font:14px/1.7 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f5f7fa;color:#121926}
+  h1{font-size:19px;margin:0 0 4px} .sub{color:#556174;font-size:13px;margin-bottom:16px}
+  .card{background:#fff;border:1px solid #dce2eb;border-radius:10px;padding:16px;margin-bottom:16px}
+  pre{white-space:pre-wrap;word-break:break-word;font:13px/1.7 ui-monospace,Consolas,monospace;margin:0;max-height:60vh;overflow:auto}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  input[type=text]{flex:1;min-width:220px;padding:8px 10px;border:1px solid #dce2eb;border-radius:7px}
+  button{padding:8px 14px;border-radius:7px;border:1px solid #b3261e;background:#b3261e;color:#fff;font-size:13px;cursor:pointer}
+  a.back{color:#0064e6;text-decoration:none;font-size:13px}
+  .tag{display:inline-block;padding:2px 8px;border-radius:999px;background:#eef2f7;color:#556174;font-size:12px}
+</style></head><body>
+  <h1>${esc(record.title)}</h1>
+  <div class="sub">${esc(record.field || "未标注")} · ${esc(record.at.slice(0, 16).replace("T", " "))} · ${kb(record.size)} · 设备 ${esc(record.deviceId.slice(0, 8))}</div>
+  ${shareId
+    ? `<div class="card"><div class="sub" style="margin:0 0 6px">公开链接（下架时一并删除）</div><a href="/s/${shareId}" target="_blank" rel="noreferrer">/s/${shareId}</a></div>`
+    : `<div class="card"><span class="tag">没有公开链接</span></div>`}
+  <div class="card"><div class="row" style="justify-content:space-between;margin-bottom:10px">
+    <b>下架这篇</b>
+    <form method="post" action="/admin?key=${encodeURIComponent(key)}" class="row" style="flex:1">
+      <input type="hidden" name="action" value="delete">
+      <input type="hidden" name="id" value="${esc(record.id)}">
+      <input type="text" name="reason" placeholder="下架原因（会写进日志，例如：权利人投诉）">
+      <button type="submit" onclick="return confirm('确认下架并删除？删除后不可恢复。')">一键下架</button>
+    </form>
+  </div>
+  <a class="back" href="/admin?key=${encodeURIComponent(key)}">← 返回列表</a></div>
+  <div class="card"><div class="sub" style="margin:0 0 8px">原文（${text ? text.length + " 字" : "未保存原文"}）</div><pre>${esc(text.slice(0, 20000))}</pre></div>
+  <div class="card"><div class="sub" style="margin:0 0 8px">解析结果（JSON）</div><pre>${esc(JSON.stringify(record.paper.result, null, 1).slice(0, 60000))}</pre></div>
+</body></html>`;
+    return c.html(html);
+  }
+
+  // GET 时 action 在 query；POST（表单提交）时 action 在 body 里。
+  // 先解析 body，再决定要不要下架，否则 POST 进来永远匹配不到。
+  const body = c.req.parseBody ? await c.req.parseBody() : {};
+  const action = String(body.action ?? "") || (c.req.query("action") ?? "");
+  if (action === "delete") {
+    const id = String(body.id ?? c.req.query("id") ?? "");
+    const reason = String(body.reason ?? "").trim() || "站长下架";
+    if (!id) return c.text("Bad Request", 400);
+    // 先删公开链接，再删存档：任何一步失败都不会留下「链接还活着、内容已删」的半截状态
+    if (shareStore) await removeShareByArchive(shareStore, id);
+    await takedownArchive(store, id, reason);
+    // 删完回列表；不把标题带进 URL
+    return c.redirect(`/admin?key=${encodeURIComponent(key)}&done=1`, 303);
+  }
+
+  return null;
+}
+
+/** 列表页上的那一块 HTML */
+export async function renderArchiveSection(store: ArchiveStore, key: string): Promise<string> {
+  const [items, takedowns] = await Promise.all([listArchives(store), listTakedowns(store, 10)]);
+  const rows = items
+    .map(
+      (item) => `<tr>
+        <td class="mono">${esc(item.at.slice(0, 16).replace("T", " "))}</td>
+        <td><b>${esc(item.title)}</b></td>
+        <td>${esc(item.field || "—")}</td>
+        <td class="mono dim">${esc(item.deviceId.slice(0, 8))}</td>
+        <td class="mono dim">${kb(item.size)}${item.hasSource ? " · 含原文" : ""}</td>
+        <td><a class="link" href="/admin?key=${encodeURIComponent(key)}&view=${encodeURIComponent(item.id)}">查看</a></td>
+      </tr>`,
+    )
+    .join("");
+
+  const logRows = takedowns
+    .map((item) => `<li><span class="mono dim">${esc(item.at.slice(0, 16).replace("T", " "))}</span> ${esc(item.title || item.id)} <span class="dim">· ${esc(item.reason)}</span></li>`)
+    .join("");
+
+  return `<div class="lock">
+    <div class="lock-state">📦 论文云存档（${items.length} 篇）</div>
+    <p class="hint">用户主动点「存到云端」才会出现在这里。列表只显示元信息，点「查看」才读正文；「一键下架」是真删除，并留一条不含正文的日志。</p>
+    <div class="card" style="margin-top:10px">
+      ${items.length ? `<table><thead><tr><th>时间</th><th>标题</th><th>学科</th><th>设备</th><th>大小</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">还没有云存档。用户点「存到云端」后，这里会出现。</div>`}
+    </div>
+    <div class="sub" style="margin:14px 0 6px">最近下架（${takedowns.length}）</div>
+    ${logRows ? `<ul class="hint" style="padding-left:18px">${logRows}</ul>` : `<p class="hint">还没有下架记录。</p>`}
+  </div>`;
+}

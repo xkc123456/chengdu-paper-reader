@@ -1,13 +1,14 @@
 import { useMemo, useState } from "react";
 import {
   ArrowDown, ArrowRight, BookOpen, ChartNoAxesCombined, Check, ChevronRight,
-  Columns3, Download, FileText, GraduationCap, Lightbulb, Network, Search,
+  Columns3, Download, FileText, GraduationCap, Lightbulb, Network, Search, Share2, Upload,
 } from "lucide-react";
 import type { AnalysisResult } from "@contracts/analysis";
 import { trpc } from "./providers/trpc";
 import { sampleAnalysis, sampleText } from "./lib/sample";
 import { loadKey, saveKey } from "./lib/key";
 import { loadProfile, saveProfile, type Profile } from "./lib/profile";
+import { getDeviceId } from "./lib/device";
 import LockedScreen from "./components/LockedScreen";
 import ProfileGate from "./components/ProfileGate";
 import { ThemeToggle } from "./lib/theme";
@@ -15,6 +16,8 @@ import ImportPanel from "./components/ImportPanel";
 import RelationshipGraph from "./components/RelationshipGraph";
 import DataChart from "./components/DataChart";
 import ComparisonBoard from "./components/ComparisonBoard";
+import ShareDialog from "./components/ShareDialog";
+import SharedPaper from "./components/SharedPaper";
 
 type Tab = "guide" | "relations" | "compare" | "charts" | "source";
 
@@ -71,7 +74,22 @@ export default function App() {
   // 院校信息：首次进入必须填写，填完存本机并上报一份，右上角可修改
   const [profile, setProfile] = useState<Profile | null>(loadProfile);
   const [gateOpen, setGateOpen] = useState(() => !loadProfile());
+  // 云存档 / 分享的界面状态
+  const [consentOpen, setConsentOpen] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [savedArchiveId, setSavedArchiveId] = useState<string | null>(null);
   const submitProfile = trpc.profile.submit.useMutation();
+  // 云存档：用户主动点「存到云端」并勾选同意后才会写服务端
+  const archive = trpc.archive.save.useMutation({
+    onSuccess: (res) => {
+      if (res.ok) {
+        setSavedArchiveId(res.id);
+        setConsentOpen(false);
+        setConsentChecked(false);
+      }
+    },
+  });
   // 站点暂停开关：每 60 秒查一次，站长在后台一关，访客这边最多一分钟就看到暂停页
   const siteStatus = trpc.site.status.useQuery(undefined, {
     refetchInterval: 60_000,
@@ -87,6 +105,7 @@ export default function App() {
       setTab("guide");
       setActiveSection(0);
       setSelectedChart(0);
+      setSavedArchiveId(null);
       window.setTimeout(() => document.getElementById("workbench")?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
     },
   });
@@ -110,6 +129,12 @@ export default function App() {
     setTab("source");
     window.setTimeout(() => document.getElementById(`source-section-${index}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
   };
+
+  // /s/<id> 是只读分享页：走独立组件，不加载工作台（也不写 localStorage）
+  const shareMatch = typeof window !== "undefined" ? window.location.pathname.match(/^\/s\/([A-Za-z0-9]{6,16})\/?$/) : null;
+  if (shareMatch) {
+    return <SharedPaper id={shareMatch[1]} />;
+  }
 
   // 站长暂停时给一个说明页：页面不消失，只是不能继续用
   if (siteStatus.data?.locked) {
@@ -175,6 +200,26 @@ export default function App() {
               {dirty && <span className="dirty-badge">原文已修改，待重新解析</span>}
               <button className="secondary-button" onClick={loadSample}>重置示例</button>
               <button className="secondary-button" onClick={() => downloadNotes(result)}><Download size={16} />导出笔记</button>
+              <button
+                className="secondary-button"
+                disabled={isSample || archive.isPending}
+                title={isSample ? "示例论文不需要存档" : "把这篇的解析结果存到云端，换设备也能打开"}
+                onClick={() => { setConsentChecked(false); setConsentOpen(true); }}
+              >
+                <Upload size={16} />
+                {archive.isPending ? "上传中…" : savedArchiveId ? "已存到云端" : "存到云端"}
+              </button>
+              <button
+                className="secondary-button"
+                disabled={isSample}
+                title={savedArchiveId ? "生成只读链接" : "先存到云端，才能生成分享链接"}
+                onClick={() => {
+                  if (!savedArchiveId) { setConsentChecked(false); setConsentOpen(true); return; }
+                  setShareOpen(true);
+                }}
+              >
+                <Share2 size={16} />分享
+              </button>
             </div>
           </div>
 
@@ -182,6 +227,8 @@ export default function App() {
             <div><span className="field-label">{result.field}</span><h2>{result.title}</h2><p>{result.oneSentence}</p></div>
             <dl><div><dt>建议精读</dt><dd>{result.readingMinutes} 分钟</dd></div><div><dt>理解难度</dt><dd>{result.difficulty}</dd></div></dl>
           </article>
+
+          <p className="ai-note">以上解读内容由 AI 生成，仅供学习参考，请以论文原文为准。</p>
 
           <div className="workbench-tabs" role="tablist" aria-label="论文拆解视图">
             {TABS.map((item) => {
@@ -274,6 +321,49 @@ export default function App() {
           setGateOpen(false);
           submitProfile.mutate(value);
         }}
+      />
+
+      {consentOpen && (
+        <div className="consent-backdrop" role="dialog" aria-modal="true" aria-labelledby="consent-title" onClick={() => setConsentOpen(false)}>
+          <div className="consent-card" onClick={(event) => event.stopPropagation()}>
+            <h3 id="consent-title">存到云端前，请确认</h3>
+            <p>这篇的解析结果和原文会保存到服务器，方便你在其他设备打开。保存后你可以随时删除；如果内容涉嫌侵权或违法，站长也会下架。</p>
+            <label className="consent-check">
+              <input type="checkbox" checked={consentChecked} onChange={(event) => setConsentChecked(event.target.checked)} />
+              <span>我确认对这篇论文有合法使用权，内容不含违法或侵权信息，并已阅读同意《用户协议》与《隐私政策》。</span>
+            </label>
+            <div className="consent-actions">
+              <button className="secondary-button" onClick={() => setConsentOpen(false)}>取消</button>
+              <button
+                className="primary-button"
+                disabled={!consentChecked || archive.isPending}
+                onClick={() => archive.mutate({
+                  deviceId: getDeviceId(),
+                  paper: {
+                    id: `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+                    title: result.title,
+                    field: result.field,
+                    createdAt: Date.now(),
+                    sourceText: text.slice(0, 200_000),
+                    result,
+                  },
+                })}
+              >
+                {archive.isPending ? "保存中…" : "同意并保存"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ShareDialog
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        deviceId={getDeviceId()}
+        archiveId={savedArchiveId ?? ""}
+        title={result.title}
+        field={result.field}
+        result={result}
       />
     </div>
   );

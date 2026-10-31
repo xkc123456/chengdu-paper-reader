@@ -19,8 +19,12 @@
     "enabled": true
   },
   // 院校上报的存储：KV 命名空间，键形如 p:<时间>:<uuid>
+  // 论文云存档的存储：独立命名空间，键形如 a:<id>（全文）/ m:<id>（元信息）/ t:<时间>:<id>（下架日志）
+  // 先建：`npx wrangler kv namespace create ARCHIVE`，把返回的 id 填到下面
   "kv_namespaces": [
-    { "binding": "PROFILES", "id": "8dcc463a9c3c411d92a283da4800ab02" }
+    { "binding": "PROFILES", "id": "8dcc463a9c3c411d92a283da4800ab02" },
+    { "binding": "ARCHIVE", "id": "REPLACE_WITH_ARCHIVE_KV_ID" },
+    { "binding": "SHARE", "id": "REPLACE_WITH_SHARE_KV_ID" }
   ],
   // 自定义域：zone 激活后由 Cloudflare 自动创建 DNS 记录并签发证书，
   // 不需要手动加 A/CNAME。部署前 zone 必须是 Active，否则 wrangler 会报错。

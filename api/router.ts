@@ -1,6 +1,8 @@
 import { createRouter, publicQuery } from "./middleware";
 import { paperRouter } from "./paperRouter";
 import { profileRouter } from "./profileRouter";
+import { archiveRouter } from "./archiveRouter";
+import { shareRouter } from "./shareRouter";
 import { readLock } from "./lib/lock";
 
 export const appRouter = createRouter({
@@ -11,6 +13,8 @@ export const appRouter = createRouter({
   }),
   paper: paperRouter,
   profile: profileRouter,
+  archive: archiveRouter,
+  share: shareRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -6,6 +6,8 @@
 // ADMIN_KEY 通过 `wrangler secret put ADMIN_KEY` 注入，不进仓库、不出现在前端。
 
 import { DEFAULT_LOCK_MESSAGE, readLock, writeLock } from "./lock";
+import { handleArchiveAdmin, renderArchiveSection } from "./adminArchive";
+import type { ArchiveStore } from "./archives";
 
 interface KvLike {
   list(options?: { prefix?: string; limit?: number; cursor?: string }): Promise<{
@@ -19,11 +21,16 @@ interface KvLike {
 
 export interface AdminEnv {
   PROFILES?: KvLike;
+  ARCHIVE?: ArchiveStore;
+  SHARE?: ArchiveStore;
   ADMIN_KEY?: string;
 }
 
 export interface AdminContext {
-  req: { query(name: string): string | undefined };
+  req: {
+    query(name: string): string | undefined;
+    parseBody?(): Promise<Record<string, unknown>>;
+  };
   env: unknown;
   html(body: string): Response;
   text(body: string, status?: 200 | 404 | 500): Response;
@@ -108,6 +115,12 @@ export async function handleAdmin(c: AdminContext): Promise<Response> {
   const lock = await readLock(store);
   const rows = await readAll(store);
 
+  // 论文云存档：/admin?key=..&view=<id> 看单篇；POST action=delete 下架（会级联删公开链接）
+  const archiveStore = env.ARCHIVE;
+  const archiveResponse = await handleArchiveAdmin(c, archiveStore, provided, env.SHARE);
+  if (archiveResponse) return archiveResponse;
+  const archiveHtml = archiveStore ? await renderArchiveSection(archiveStore, provided) : "";
+
   if ((c.req.query("format") ?? "") === "csv") {
     return new Response(toCsv(rows), {
       headers: {
@@ -179,6 +192,8 @@ export async function handleAdmin(c: AdminContext): Promise<Response> {
     </form>
     <p class="hint">暂停后访客看到说明页、解析接口返回 503，数据仍保留；生效通常 10–60 秒（KV 缓存）。</p>
   </div>
+
+  ${archiveHtml}
 
   <div class="actions"><a href="/admin?key=${key}&format=csv">导出 CSV</a></div>
   <div class="card">

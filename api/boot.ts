@@ -76,8 +76,10 @@ app.post(
 );
 app.all("/api/*", (c) => c.json({ error: "Not Found" }, 404));
 
-// 站长后台：读 KV 里的院校上报。没配 ADMIN_KEY 时一律 404，不暴露存在性。
+// 站长后台：读 KV 里的院校上报与论文云存档。没配 ADMIN_KEY 时一律 404，不暴露存在性。
 app.get("/admin", (c) => handleAdmin(c as unknown as AdminContext));
+// 下架用 POST：GET 删除会被浏览器预取/链接预览误触发
+app.post("/admin", (c) => handleAdmin(c as unknown as AdminContext));
 
 // Unhandled request errors must reach /tmp/kimi-logs/app.log, not just stdout:
 // that file is what the building agent reads when a preview 500s, and without

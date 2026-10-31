@@ -17,6 +17,10 @@ export interface ProfileStore {
 export type WorkerBindings = {
   /** KV 命名空间；没配时为 undefined，上报会退化成写日志 */
   PROFILES?: ProfileStore;
+  /** 论文云存档；没绑定时 archive 接口返回 unavailable，本地库不受影响 */
+  ARCHIVE?: ProfileStore & { delete(key: string): Promise<void> };
+  /** 分享链接；没绑定时 share 接口返回 unavailable */
+  SHARE?: ProfileStore & { delete(key: string): Promise<void> };
 };
 
 export type TrpcContext = {
