@@ -31,6 +31,17 @@ export const archiveRouter = createRouter({
     return { ok: true as const, id: meta.id, at: meta.at };
   }),
 
+  /** 打开自己存过的一篇（校验归属，避免拿到别人的 id 就能读） */
+  get: publicQuery
+    .input(z.object({ deviceId: z.string().min(8).max(64), id: z.string().min(6).max(64) }))
+    .query(async ({ input, ctx }) => {
+      const store = ctx.env?.ARCHIVE;
+      if (!isArchiveStore(store)) return { ok: false as const, reason: "unavailable" as const };
+      const record = await getArchive(store, input.id);
+      if (!record || record.deviceId !== input.deviceId) return { ok: false as const, reason: "not-found" as const };
+      return { ok: true as const, paper: record.paper };
+    }),
+
   /** 自己这台设备存过什么（只有元信息，不含正文） */
   mine: publicQuery.input(z.object({ deviceId: z.string().min(8).max(64) })).query(async ({ input, ctx }) => {
     const store = ctx.env?.ARCHIVE;

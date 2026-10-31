@@ -20,6 +20,11 @@ export const archiveSaveInput = z.object({
   paper: archivePaperSchema,
 });
 
+export const archiveGetInput = z.object({
+  deviceId: z.string().min(8).max(64),
+  id: z.string().min(6).max(64),
+});
+
 export type ArchivedPaper = z.infer<typeof archivePaperSchema>;
 
 /** 列表只读这一份，避免把正文全部拉出来 */

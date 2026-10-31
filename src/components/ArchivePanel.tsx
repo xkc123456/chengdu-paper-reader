@@ -1,0 +1,84 @@
+import { useState } from "react";
+import type { ArchivedPaper } from "@contracts/archive";
+import { trpc } from "../providers/trpc";
+
+interface Props {
+  open: boolean;
+  deviceId: string;
+  onClose: () => void;
+  onOpen: (paper: ArchivedPaper, archiveId: string) => void;
+}
+
+export default function ArchivePanel({ open, deviceId, onClose, onOpen }: Props) {
+  const utils = trpc.useUtils();
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
+  const list = trpc.archive.mine.useQuery({ deviceId }, { enabled: open, staleTime: 10_000 });
+  const remove = trpc.archive.remove.useMutation({
+    onSuccess: () => { void utils.archive.mine.invalidate(); },
+  });
+
+  if (!open) return null;
+
+  const items = list.data?.ok ? list.data.items : [];
+
+  const openOne = async (id: string) => {
+    setBusyId(id);
+    setError("");
+    try {
+      const res = await utils.client.archive.get.query({ deviceId, id });
+      if (res.ok) onOpen(res.paper, id);
+      else setError("这篇打不开了，可能已被删除。");
+    } catch {
+      setError("打开失败，请检查网络后重试。");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div role="dialog" aria-modal="true" onClick={onClose}
+      style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.55)", display: "flex", justifyContent: "flex-end", zIndex: 85 }}>
+      <aside onClick={(event) => event.stopPropagation()}
+        style={{ width: "min(420px, 92vw)", height: "100%", background: "#fff", color: "#121926", padding: 20, overflowY: "auto", boxShadow: "-12px 0 40px rgba(15,23,42,.18)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+          <h3 style={{ margin: 0, fontSize: 18 }}>我的存档</h3>
+          <button onClick={onClose} style={{ border: "none", background: "transparent", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
+        </div>
+        <p style={{ margin: "0 0 14px", color: "#7c8798", fontSize: 12, lineHeight: 1.6 }}>
+          存在这台浏览器对应的设备 ID 下。换设备、换浏览器看不到；收藏链接可以发给别人看。
+        </p>
+
+        {error && <p style={{ color: "#b3261e", fontSize: 13 }}>{error}</p>}
+        {list.isLoading && <p style={{ color: "#7c8798", fontSize: 13 }}>加载中…</p>}
+
+        {!list.isLoading && items.length === 0 && (
+          <div style={{ padding: "28px 0", color: "#7c8798", fontSize: 13, lineHeight: 1.8 }}>
+            还没有存过论文。<br />导入一篇后点「存到云端」，就会出现在这里。
+          </div>
+        )}
+
+        {items.map((item) => (
+          <div key={item.id} style={{ border: "1px solid #e3e8ef", borderRadius: 10, padding: 12, marginBottom: 10 }}>
+            <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.5 }}>{item.title}</div>
+            <div style={{ color: "#7c8798", fontSize: 12, margin: "4px 0 10px" }}>
+              {item.field || "未标注"} · {new Date(item.at).toLocaleString("zh-CN")} · {Math.max(1, Math.round(item.size / 1024))} KB
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button disabled={busyId === item.id} onClick={() => void openOne(item.id)}
+                style={{ padding: "6px 12px", borderRadius: 7, border: "none", background: "#0064e6", color: "#fff", cursor: "pointer", fontSize: 13 }}>
+                {busyId === item.id ? "打开中…" : "打开"}
+              </button>
+              <button disabled={remove.isPending}
+                onClick={() => { if (confirm("删除后不可恢复，确定删除这篇存档？")) remove.mutate({ deviceId, id: item.id }); }}
+                style={{ padding: "6px 12px", borderRadius: 7, border: "1px solid #dce2eb", background: "#fff", color: "#b3261e", cursor: "pointer", fontSize: 13 }}>
+                删除
+              </button>
+            </div>
+          </div>
+        ))}
+      </aside>
+    </div>
+  );
+}

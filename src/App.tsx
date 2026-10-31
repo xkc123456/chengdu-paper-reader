@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   ArrowDown, ArrowRight, BookOpen, ChartNoAxesCombined, Check, ChevronRight,
-  Columns3, Download, FileText, GraduationCap, Lightbulb, Network, Search, Share2, Upload,
+  Columns3, Download, FileText, FolderOpen, GraduationCap, Lightbulb, Network, Search, Share2, Upload,
 } from "lucide-react";
 import type { AnalysisResult } from "@contracts/analysis";
 import { trpc } from "./providers/trpc";
@@ -20,6 +20,7 @@ import DataChart from "./components/DataChart";
 import ComparisonBoard from "./components/ComparisonBoard";
 import ShareDialog from "./components/ShareDialog";
 import SharedPaper from "./components/SharedPaper";
+import ArchivePanel from "./components/ArchivePanel";
 
 type Tab = "guide" | "relations" | "compare" | "charts" | "source";
 
@@ -80,6 +81,7 @@ export default function App() {
   const [consentOpen, setConsentOpen] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const [savedArchiveId, setSavedArchiveId] = useState<string | null>(null);
   const submitProfile = trpc.profile.submit.useMutation();
   // 云存档：用户主动点「存到云端」并勾选同意后才会写服务端
@@ -201,6 +203,7 @@ export default function App() {
               {dirty && <span className="dirty-badge">原文已修改，待重新解析</span>}
               <button className="secondary-button" onClick={loadSample}>重置示例</button>
               <button className="secondary-button" onClick={() => downloadNotes(result)}><Download size={16} />导出笔记</button>
+              <button className="secondary-button" onClick={() => setArchiveOpen(true)}><FolderOpen size={16} />我的存档</button>
               <button
                 className="secondary-button"
                 disabled={isSample || archive.isPending}
@@ -352,6 +355,22 @@ export default function App() {
           </div>
         </div>
       )}
+
+      <ArchivePanel
+        open={archiveOpen}
+        deviceId={getDeviceId()}
+        onClose={() => setArchiveOpen(false)}
+        onOpen={(paper, id) => {
+          setResult(paper.result);
+          setTextState(paper.sourceText ?? "");
+          setIsSample(false);
+          setDirty(false);
+          setTab("guide");
+          setSavedArchiveId(id);
+          setArchiveOpen(false);
+          window.setTimeout(() => document.getElementById("workbench")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+        }}
+      />
 
       <ShareDialog
         open={shareOpen}
