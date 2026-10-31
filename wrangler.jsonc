@@ -25,8 +25,8 @@
   // 先建：`npx wrangler kv namespace create ARCHIVE`，把返回的 id 填到下面
   "kv_namespaces": [
     { "binding": "PROFILES", "id": "8dcc463a9c3c411d92a283da4800ab02" },
-    { "binding": "ARCHIVE", "id": "REPLACE_WITH_ARCHIVE_KV_ID" },
-    { "binding": "SHARE", "id": "REPLACE_WITH_SHARE_KV_ID" },
+    { "binding": "ARCHIVE", "id": "9a5f8f6ea3734185ae47932a49c36ae8" },
+    { "binding": "SHARE", "id": "af5736be665b4395abf722f876365698" },
   ],
   // 自定义域：zone 激活后由 Cloudflare 自动创建 DNS 记录并签发证书，
   // 不需要手动加 A/CNAME。部署前 zone 必须是 Active，否则 wrangler 会报错。
