@@ -321,6 +321,13 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, summary:focus-vis
 .faq-modal details[open] summary span { transform: rotate(45deg); }
 .faq-modal details p { padding: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.75; }
 .faq-close { margin-top: 16px; width: 100%; }
+.home-static .faq-section { align-items: start; }
+.home-static .faq-static details { border-top: 1px solid var(--line); padding: 12px 0 2px; }
+.home-static .faq-static summary { cursor: pointer; font-size: 14px; font-weight: 650; }
+.home-static .faq-static details p { margin-top: 8px; color: var(--muted); font-size: 13px; line-height: 1.75; }
+.home-static-note { display: grid; gap: 12px; align-content: center; }
+.home-static-note strong { font-size: 16px; letter-spacing: -.01em; }
+.home-static-note p { color: var(--muted); font-size: 14px; line-height: 1.8; }
 footer { min-height: 110px; padding: 28px max(28px, calc((100vw - 1468px) / 2)); border-top: 1px solid var(--line); display: flex; align-items: center; gap: 24px; background: var(--panel); }
 .footer-brand > span { font-size: 20px; }
 footer p { color: var(--muted); font-size: 12px; }

@@ -12,6 +12,7 @@ import LockedScreen from "./components/LockedScreen";
 import ProfileGate from "./components/ProfileGate";
 import { ThemeToggle } from "./lib/theme";
 import FaqSection from "./components/FaqSection";
+import { homeCopy } from "./homeCopy";
 import ImportPanel from "./components/ImportPanel";
 import RelationshipGraph from "./components/RelationshipGraph";
 import DataChart from "./components/DataChart";
@@ -120,7 +121,7 @@ export default function App() {
   return (
     <div className="site-shell">
       <header className="site-header">
-        <a className="brand" href="#top" aria-label="澄读首页"><BrandMark /><span>澄读</span><small>PAPER, MADE CLEAR</small></a>
+        <a className="brand" href="#top" aria-label="澄读首页"><BrandMark /><span>{homeCopy.brand}</span><small>{homeCopy.brandTag}</small></a>
         <nav aria-label="主导航">
           <a href="#workbench">精读工作台</a><a href="#method">如何读</a><a href="#faq">使用边界</a>
         </nav>
@@ -137,13 +138,13 @@ export default function App() {
       <main>
         <section className="hero" id="top">
           <div className="hero-copy">
-            <div className="hero-kicker"><span>本科生论文精读工作台</span><i />任何学科，任何论文</div>
-            <h1>把论文读成<br />一堂<em>听得懂</em>的课。</h1>
-            <p className="hero-lead">不止总结摘要。澄读把研究问题、作用机制、主体关系和证据逐层拆开，再用老师能讲明白、你能复述的话讲给你听。</p>
+            <div className="hero-kicker"><span>{homeCopy.kicker}</span><i />{homeCopy.kickerAside}</div>
+            <h1>{homeCopy.headlineBefore}<br />{homeCopy.headlineMiddle}<em>{homeCopy.headlineEm}</em>{homeCopy.headlineAfter}</h1>
+            <p className="hero-lead">{homeCopy.claim}</p>
             <div className="hero-proof">
-              <div><b>01</b><span>先抓问题<small>这篇论文究竟想解决什么</small></span></div>
-              <div><b>02</b><span>再看机制<small>结论是怎样一步步推出来的</small></span></div>
-              <div><b>03</b><span>最后核对<small>哪些是原文证据，哪些只是推断</small></span></div>
+              {homeCopy.proof.map((item) => (
+                <div key={item.n}><b>{item.n}</b><span>{item.title}<small>{item.detail}</small></span></div>
+              ))}
             </div>
             <a href="#workbench" className="text-link">先看看一篇示例如何被拆解<ArrowRight size={16} /></a>
           </div>
@@ -159,10 +160,9 @@ export default function App() {
         </section>
 
         <section className="capability-strip" aria-label="支持能力">
-          <span><Check size={15} />PDF / Word / 截图识别</span>
-          <span><Check size={15} />通俗讲解与原文依据</span>
-          <span><Check size={15} />主体关系与分栏比较</span>
-          <span><Check size={15} />折线图 / 柱状图 / 数据表</span>
+          {homeCopy.capabilities.map((item) => (
+            <span key={item}><Check size={15} />{item}</span>
+          ))}
         </section>
 
         <section className="workbench-section" id="workbench">
@@ -248,19 +248,19 @@ export default function App() {
         </section>
 
         <section className="method-section" id="method">
-          <div className="method-intro"><h2>读懂，不等于把每句话<br />都翻译一遍。</h2><p>真正有效的精读，是先建立结构，再补细节。</p></div>
+          <div className="method-intro"><h2>{homeCopy.methodTitleBefore}<br />{homeCopy.methodTitleAfter}</h2><p>{homeCopy.methodLead}</p></div>
           <div className="method-table">
-            <div className="method-row head"><span>论文类型</span><span>先问什么</span><span>重点拆什么</span></div>
-            <div className="method-row"><b>实证研究</b><span>X 真的影响了 Y 吗，凭什么说不是巧合？</span><span>变量与度量、识别策略、样本与数据、异质性、因果边界</span></div>
-            <div className="method-row"><b>规范研究</b><span>谁在什么条件下承担什么责任？</span><span>主体、构成要件、权利义务、例外、适用环节、论证结构</span></div>
-            <div className="method-row"><b>系统与实验</b><span>这个方法解决了什么瓶颈，代价是什么？</span><span>问题定义、架构、数据流、算法、实验设置与消融</span></div>
+            <div className="method-row head">{homeCopy.methodHead.map((cell) => <span key={cell}>{cell}</span>)}</div>
+            {homeCopy.methodRows.map((row) => (
+              <div className="method-row" key={row.kind}><b>{row.kind}</b><span>{row.ask}</span><span>{row.focus}</span></div>
+            ))}
           </div>
         </section>
 
         <FaqSection />
       </main>
 
-      <footer><a className="brand footer-brand" href="#top"><BrandMark /><span>澄读</span></a><p>把复杂的论文，读成清楚的知识。</p><div><a href="#workbench">工作台</a><a href="#method">阅读方法</a><a href="#faq">使用边界</a></div></footer>
+      <footer><a className="brand footer-brand" href="#top"><BrandMark /><span>{homeCopy.brand}</span></a><p>{homeCopy.footer}</p><div><a href="#workbench">工作台</a><a href="#method">阅读方法</a><a href="#faq">使用边界</a></div></footer>
 
       <ProfileGate
         open={gateOpen}

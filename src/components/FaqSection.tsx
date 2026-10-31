@@ -1,24 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { homeCopy } from "../homeCopy";
 
-/** 原型 v5.1 文案。页底一块入口，点开后再看四条说明。 */
-const FAQ_ITEMS = [
-  {
-    question: "会不会凭空画图？",
-    answer: "原文没有数字，就不会生成数据图。图表只在有原文依据时出现。",
-  },
-  {
-    question: "机制和结论会不会被写成铁板事实？",
-    answer: "关系与机制仍需回到原文核对；推断不会被写成已经成立的结论。",
-  },
-  {
-    question: "表格、公式能不能替我校对？",
-    answer: "不能完全替代。OCR 可能误识别上下标、符号和复杂排版，关键处请对照原文。",
-  },
-  {
-    question: "示范课里的数据能当研究证据吗？",
-    answer: "不能。教学示例使用构造数据，只用来演示怎么拆一篇论文。",
-  },
-] as const;
+/** 页底一块入口，点开后再看四条说明。文案与无脚本正文共用 homeCopy。 */
 
 function FaqItem({
   question,
@@ -76,10 +59,10 @@ export default function FaqSection() {
   return (
     <section className="faq-section" id="faq" aria-labelledby="faq-heading">
       <div>
-        <span className="eyebrow">常见疑问</span>
-        <h2 id="faq-heading">你想问的那几件事</h2>
+        <span className="eyebrow">{homeCopy.faqEyebrow}</span>
+        <h2 id="faq-heading">{homeCopy.faqHeading}</h2>
       </div>
-      <p className="faq-preview">图表怎么来、结论怎么写、公式能不能替你校——点开看说明。</p>
+      <p className="faq-preview">{homeCopy.faqPreview}</p>
       <button
         ref={triggerRef}
         className="primary-button faq-open"
@@ -106,7 +89,7 @@ export default function FaqSection() {
           >
             <h3 id={titleId}>常见疑问</h3>
             <p className="faq-lead">把原先分散在页上的说明收进这里，需要时再看。</p>
-            {FAQ_ITEMS.map((item, index) => (
+            {homeCopy.faq.map((item, index) => (
               <FaqItem
                 key={item.question}
                 question={item.question}
