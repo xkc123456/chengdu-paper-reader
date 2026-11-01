@@ -7,9 +7,10 @@ interface Props {
   deviceId: string;
   onClose: () => void;
   onOpen: (paper: ArchivedPaper, archiveId: string) => void;
+  onAppeal?: (ref: string) => void;
 }
 
-export default function ArchivePanel({ open, deviceId, onClose, onOpen }: Props) {
+export default function ArchivePanel({ open, deviceId, onClose, onOpen, onAppeal }: Props) {
   const utils = trpc.useUtils();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -72,6 +73,14 @@ export default function ArchivePanel({ open, deviceId, onClose, onOpen }: Props)
               ))}
             </ul>
             <p style={{ margin: "6px 0 0", fontSize: 12, color: "#8a4b1e" }}>如认为处理有误，可联系站长申诉。</p>
+            {onAppeal && (
+              <button
+                onClick={() => onAppeal(notices.data!.ok ? notices.data!.items[0].title : "")}
+                style={{ marginTop: 8, padding: "6px 12px", borderRadius: 7, border: "1px solid #d08a55", background: "#fff", color: "#8a4b1e", cursor: "pointer", fontSize: 12 }}
+              >
+                联系我们申诉
+              </button>
+            )}
           </div>
         )}
         {list.isError && <p style={{ color: "#b3261e", fontSize: 13 }}>加载失败，请点「刷新」重试。</p>}

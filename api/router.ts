@@ -3,6 +3,7 @@ import { paperRouter } from "./paperRouter";
 import { profileRouter } from "./profileRouter";
 import { archiveRouter } from "./archiveRouter";
 import { shareRouter } from "./shareRouter";
+import { ticketRouter } from "./ticketRouter";
 import { readLock } from "./lib/lock";
 
 export const appRouter = createRouter({
@@ -15,6 +16,7 @@ export const appRouter = createRouter({
   profile: profileRouter,
   archive: archiveRouter,
   share: shareRouter,
+  ticket: ticketRouter,
 });
 
 export type AppRouter = typeof appRouter;

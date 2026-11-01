@@ -6,7 +6,7 @@
 // ADMIN_KEY 通过 `wrangler secret put ADMIN_KEY` 注入，不进仓库、不出现在前端。
 
 import { DEFAULT_LOCK_MESSAGE, readLock, writeLock } from "./lock";
-import { handleArchiveAdmin, renderArchiveSection } from "./adminArchive";
+import { handleArchiveAdmin, renderArchiveSection, handleTicketsAdmin, renderTicketsSection } from "./adminArchive";
 import type { ArchiveStore } from "./archives";
 
 interface KvLike {
@@ -117,6 +117,9 @@ export async function handleAdmin(c: AdminContext): Promise<Response> {
 
   // 论文云存档：/admin?key=..&view=<id> 看单篇；POST action=delete 下架（会级联删公开链接）
   const archiveStore = env.ARCHIVE;
+  const ticketResponse = await handleTicketsAdmin(c, archiveStore, provided);
+  if (ticketResponse) return ticketResponse;
+  const ticketsHtml = archiveStore ? await renderTicketsSection(archiveStore, provided) : "";
   const archiveResponse = await handleArchiveAdmin(c, archiveStore, provided, env.SHARE);
   if (archiveResponse) return archiveResponse;
   const archiveHtml = archiveStore ? await renderArchiveSection(archiveStore, provided) : "";
@@ -194,6 +197,8 @@ export async function handleAdmin(c: AdminContext): Promise<Response> {
   </div>
 
   ${archiveHtml}
+
+  ${ticketsHtml}
 
   <div class="actions"><a href="/admin?key=${key}&format=csv">导出 CSV</a></div>
   <div class="card">

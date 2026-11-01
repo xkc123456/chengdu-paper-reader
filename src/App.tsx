@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   ArrowDown, ArrowRight, BookOpen, ChartNoAxesCombined, Check, ChevronRight,
-  Columns3, Download, FileText, FolderOpen, GraduationCap, Lightbulb, Network, Search, Share2, Upload,
+  Columns3, Download, FileText, FolderOpen, GraduationCap, Lightbulb, Network, Search, Share2, Upload, AlertTriangle,
 } from "lucide-react";
 import type { AnalysisResult } from "@contracts/analysis";
 import { trpc } from "./providers/trpc";
@@ -21,6 +21,7 @@ import ComparisonBoard from "./components/ComparisonBoard";
 import ShareDialog from "./components/ShareDialog";
 import SharedPaper from "./components/SharedPaper";
 import ArchivePanel from "./components/ArchivePanel";
+import FeedbackDialog from "./components/FeedbackDialog";
 
 type Tab = "guide" | "relations" | "compare" | "charts" | "source";
 
@@ -82,6 +83,7 @@ export default function App() {
   const [consentChecked, setConsentChecked] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [feedback, setFeedback] = useState<{ open: boolean; kind: "complaint" | "appeal"; ref: string }>({ open: false, kind: "complaint", ref: "" });
   const [savedArchiveId, setSavedArchiveId] = useState<string | null>(null);
   const submitProfile = trpc.profile.submit.useMutation();
   // 云存档：用户主动点「存到云端」并勾选同意后才会写服务端
@@ -310,7 +312,16 @@ export default function App() {
         <FaqSection />
       </main>
 
-      <footer><a className="brand footer-brand" href="#top"><BrandMark /><span>{homeCopy.brand}</span></a><p>{homeCopy.footer}</p><div><a href="#workbench">工作台</a><a href="#method">阅读方法</a><a href="#faq">使用边界</a></div></footer>
+      <footer>
+        <a className="brand footer-brand" href="#top"><BrandMark /><span>{homeCopy.brand}</span></a>
+        <p>{homeCopy.footer}</p>
+        <div>
+          <a href="#workbench">工作台</a><a href="#method">阅读方法</a><a href="#faq">使用边界</a>
+          <button className="footer-report" onClick={() => setFeedback({ open: true, kind: "complaint", ref: "" })}>
+            <AlertTriangle size={13} /> 侵权投诉
+          </button>
+        </div>
+      </footer>
 
       <ProfileGate
         open={gateOpen}
@@ -360,6 +371,7 @@ export default function App() {
         open={archiveOpen}
         deviceId={getDeviceId()}
         onClose={() => setArchiveOpen(false)}
+        onAppeal={(ref) => { setArchiveOpen(false); setFeedback({ open: true, kind: "appeal", ref }); }}
         onOpen={(paper, id) => {
           setResult(paper.result);
           setTextState(paper.sourceText ?? "");
@@ -370,6 +382,14 @@ export default function App() {
           setArchiveOpen(false);
           window.setTimeout(() => document.getElementById("workbench")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
         }}
+      />
+
+      <FeedbackDialog
+        open={feedback.open}
+        kind={feedback.kind}
+        defaultRef={feedback.ref}
+        deviceId={getDeviceId()}
+        onClose={() => setFeedback((prev) => ({ ...prev, open: false }))}
       />
 
       <ShareDialog

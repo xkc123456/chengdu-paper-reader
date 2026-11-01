@@ -7,6 +7,7 @@
 import type { ArchiveStore } from "./archives";
 import { getArchive, listArchives, listTakedowns, takedownArchive } from "./archives";
 import { removeShareByArchive, shareIdForArchive, type ShareStore } from "./shares";
+import { listTickets, markTicketDone } from "./tickets";
 
 export interface ArchiveAdminContext {
   req: {
@@ -137,6 +138,58 @@ export async function handleArchiveAdmin(
   }
 
   return null;
+}
+
+/** 投诉 / 申诉工单：标记已处理 */
+export async function handleTicketsAdmin(
+  c: ArchiveAdminContext,
+  store: ArchiveStore | undefined,
+  key: string,
+): Promise<Response | null> {
+  if (!store) return null;
+  const body = c.req.parseBody ? await c.req.parseBody() : {};
+  const action = String(body.action ?? "") || (c.req.query("action") ?? "");
+  if (action !== "ticket-done") return null;
+  const id = String(body.id ?? c.req.query("id") ?? "");
+  if (!id) return c.text("Bad Request", 400);
+  await markTicketDone(store, id);
+  return c.redirect(`/admin?key=${encodeURIComponent(key)}&ticket=done`, 303);
+}
+
+/** 列表页上的「投诉与申诉」区块 */
+export async function renderTicketsSection(store: ArchiveStore, key: string): Promise<string> {
+  const tickets = await listTickets(store, 50);
+  const open = tickets.filter((t) => t.status === "open").length;
+  const rows = tickets
+    .map(
+      (t) => `<tr>
+        <td class="mono">${esc(t.at.slice(0, 19).replace("T", " "))}</td>
+        <td>${t.kind === "complaint" ? "侵权投诉" : "用户申诉"}</td>
+        <td><b>${esc(t.subject)}</b></td>
+        <td style="white-space:normal;max-width:420px">${esc(t.body.slice(0, 300))}</td>
+        <td class="dim">${esc(t.contact || "—")}</td>
+        <td class="dim">${esc(t.ref || "—")}</td>
+        <td>${t.status === "open" ? "待处理" : "已处理"}</td>
+        <td>${t.status === "open"
+          ? `<form method="post" action="/admin?key=${encodeURIComponent(key)}" style="display:inline">
+               <input type="hidden" name="action" value="ticket-done">
+               <input type="hidden" name="id" value="${esc(t.id)}">
+               <button type="submit" style="padding:4px 10px;border-radius:6px;border:1px solid #dce2eb;background:#f5f7fa;cursor:pointer;font-size:12px">标记已处理</button>
+             </form>`
+          : "—"}</td>
+      </tr>`,
+    )
+    .join("");
+
+  return `<div class="lock">
+    <div class="lock-state">📨 投诉与申诉（待处理 ${open} / 共 ${tickets.length}）</div>
+    <p class="hint">来自页脚「侵权投诉」与用户端「联系我们申诉」。内容只在这里可见，不会公开。</p>
+    <div class="card" style="margin-top:10px">
+      ${tickets.length
+        ? `<table><thead><tr><th>时间</th><th>类型</th><th>标题</th><th>内容</th><th>联系方式</th><th>涉及内容</th><th>状态</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>`
+        : `<div class="empty">还没有投诉或申诉。</div>`}
+    </div>
+  </div>`;
 }
 
 /** 列表页上的那一块 HTML */
