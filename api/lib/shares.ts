@@ -47,6 +47,23 @@ const key = {
   byArchive: (archiveId: string) => `x:${archiveId}`,
 };
 
+/**
+ * 分享 id 由 archiveId 决定，而不是随机。
+ *
+ * 原因：删存档时要立刻撤销公开链接。如果靠 `x:<archiveId>` 反向索引，而索引刚写入
+ * 还没在所有边缘节点同步（KV 最终一致，最长约 60 秒），就会出现「存档删了、链接还活着」。
+ * 改成可计算之后，删除方直接算出 id 删 `s:<id>`，不再依赖读索引。
+ * 附带好处：一篇存档天然只有一个链接，重新分享即替换。
+ */
+const SHARE_SALT = "cdreader-share-v1";
+export async function shareIdFor(archiveId: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${archiveId}|${SHARE_SALT}`));
+  const bytes = new Uint8Array(digest);
+  let id = "";
+  for (let i = 0; i < 10; i += 1) id += ALPHABET[bytes[i] % ALPHABET.length];
+  return id;
+}
+
 export function isShareStore(value: unknown): value is ShareStore {
   const store = value as Partial<ShareStore> | undefined;
   return Boolean(store && typeof store.get === "function" && typeof store.put === "function" && typeof store.delete === "function");
@@ -63,12 +80,7 @@ export async function createShare(
     token: string;
   },
 ): Promise<{ record: ShareRecord; id: string }> {
-  // 极低概率碰撞：命中就换一个
-  let id = randomId(10);
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    if (!(await store.get(key.share(id)))) break;
-    id = randomId(10);
-  }
+  const id = await shareIdFor(input.archiveId);
   const createdAt = Date.now();
   const record: ShareRecord = {
     v: 1,
@@ -82,6 +94,7 @@ export async function createShare(
     result: input.result,
   };
   await store.put(key.share(id), JSON.stringify(record));
+  // 反向索引只用于老版本读取，写一份不碍事
   await store.put(key.byArchive(input.archiveId), id);
   return { record, id };
 }
@@ -117,15 +130,18 @@ async function getShareRaw(store: ShareStore, id: string): Promise<ShareRecord |
   }
 }
 
-/** 下架云存档时级联：把对应的公开链接一起删掉 */
+/** 下架云存档时级联：算出链接 id 直接删，不依赖任何索引读取 */
 export async function removeShareByArchive(store: ShareStore, archiveId: string): Promise<string | null> {
-  const id = await store.get(key.byArchive(archiveId));
-  if (!id) return null;
-  await removeShare(store, id);
-  return id;
+  const id = await shareIdFor(archiveId);
+  const record = await getShareRaw(store, id);
+  await store.delete(key.share(id));
+  await store.delete(key.byArchive(archiveId));
+  return record ? id : null;
 }
 
 /** 存档详情里显示「这篇有没有公开链接」 */
 export async function shareIdForArchive(store: ShareStore, archiveId: string): Promise<string | null> {
-  return store.get(key.byArchive(archiveId));
+  const id = await shareIdFor(archiveId);
+  const record = await getShareRaw(store, id);
+  return record ? id : null;
 }
