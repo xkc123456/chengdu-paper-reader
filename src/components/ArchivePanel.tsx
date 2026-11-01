@@ -46,16 +46,27 @@ export default function ArchivePanel({ open, deviceId, onClose, onOpen }: Props)
           <h3 style={{ margin: 0, fontSize: 18 }}>我的存档</h3>
           <button onClick={onClose} style={{ border: "none", background: "transparent", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
         </div>
-        <p style={{ margin: "0 0 14px", color: "#7c8798", fontSize: 12, lineHeight: 1.6 }}>
+        <p style={{ margin: "0 0 10px", color: "#7c8798", fontSize: 12, lineHeight: 1.6 }}>
           存在这台浏览器对应的设备 ID 下。换设备、换浏览器看不到；收藏链接可以发给别人看。
         </p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "0 0 12px", fontSize: 12, color: "#7c8798" }}>
+          <span>设备 {deviceId.slice(0, 8)}</span>
+          <button
+            onClick={() => void list.refetch()}
+            style={{ border: "1px solid #dce2eb", background: "#fff", borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer" }}
+          >
+            刷新
+          </button>
+        </div>
 
         {error && <p style={{ color: "#b3261e", fontSize: 13 }}>{error}</p>}
+        {list.isError && <p style={{ color: "#b3261e", fontSize: 13 }}>加载失败，请点「刷新」重试。</p>}
         {list.isLoading && <p style={{ color: "#7c8798", fontSize: 13 }}>加载中…</p>}
 
         {!list.isLoading && items.length === 0 && (
           <div style={{ padding: "28px 0", color: "#7c8798", fontSize: 13, lineHeight: 1.8 }}>
-            还没有存过论文。<br />导入一篇后点「存到云端」，就会出现在这里。
+            还没有存过论文。<br />导入一篇后点「存到云端」，就会出现在这里。<br />
+            如果刚存过，等几秒点「刷新」。
           </div>
         )}
 
