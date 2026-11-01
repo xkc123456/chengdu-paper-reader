@@ -45,7 +45,9 @@ export default function FeedbackDialog({ open, kind, defaultRef = "", deviceId, 
     ? "如果你认为内容被误删，请说明理由；站长会在收到后复核。"
     : "如果你是权利人，或发现侵权内容，请填写下方信息；站长会在收到后处理。";
   const error = submit.data && !submit.data.ok ? submit.data.reason : submit.error?.message ?? "";
-  const canSubmit = subject.trim().length > 0 && body.trim().length >= 5 && !submit.isPending;
+  // 只要求"说明"有内容；标题可留空（自动从说明截取），避免用户填了内容却点不动按钮
+  const canSubmit = body.trim().length >= 5 && !submit.isPending;
+  const effectiveSubject = subject.trim() || body.trim().slice(0, 30) || title;
 
   return (
     <div role="dialog" aria-modal="true" onClick={onClose}
@@ -65,9 +67,9 @@ export default function FeedbackDialog({ open, kind, defaultRef = "", deviceId, 
           </div>
         ) : (
           <>
-            <label style={{ display: "block", fontSize: 13, marginBottom: 6 }}>标题</label>
+            <label style={{ display: "block", fontSize: 13, marginBottom: 6 }}>标题（可选）</label>
             <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={100}
-              placeholder={isAppeal ? "例如：我的《琵琶行》精读被误删" : "例如：某篇分享内容侵犯我的著作权"}
+              placeholder={isAppeal ? "例如：我的《琵琶行》精读被误删" : "例如：某篇分享内容侵犯我的著作权（可留空）"}
               style={{ width: "100%", boxSizing: "border-box", padding: "9px 10px", border: "1px solid #dce2eb", borderRadius: 8, marginBottom: 12 }} />
 
             <label style={{ display: "block", fontSize: 13, marginBottom: 6 }}>具体说明</label>
@@ -86,11 +88,12 @@ export default function FeedbackDialog({ open, kind, defaultRef = "", deviceId, 
               style={{ width: "100%", boxSizing: "border-box", padding: "9px 10px", border: "1px solid #dce2eb", borderRadius: 8, marginBottom: 12 }} />
 
             {error && <p style={{ color: "#b3261e", fontSize: 13, margin: "0 0 10px" }}>{error === "rate-limited" ? "提交太频繁，请稍后再试。" : error}</p>}
+            {!canSubmit && <p style={{ color: "#7c8798", fontSize: 12, margin: "0 0 8px" }}>请先在「具体说明」里写至少 5 个字。</p>}
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
               <button onClick={onClose} style={{ padding: "9px 16px", borderRadius: 8, border: "1px solid #dce2eb", background: "#fff", cursor: "pointer" }}>取消</button>
               <button disabled={!canSubmit}
-                onClick={() => submit.mutate({ kind, subject: subject.trim(), body: body.trim(), contact: contact.trim() || undefined, ref: ref.trim() || undefined, deviceId })}
+                onClick={() => submit.mutate({ kind, subject: effectiveSubject, body: body.trim(), contact: contact.trim() || undefined, ref: ref.trim() || undefined, deviceId })}
                 style={{ padding: "9px 16px", borderRadius: 8, border: "none", background: canSubmit ? "#0064e6" : "#9db8dc", color: "#fff", cursor: canSubmit ? "pointer" : "default" }}>
                 {submit.isPending ? "提交中…" : "提交"}
               </button>
