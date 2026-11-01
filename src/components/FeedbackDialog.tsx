@@ -45,8 +45,8 @@ export default function FeedbackDialog({ open, kind, defaultRef = "", deviceId, 
     ? "如果你认为内容被误删，请说明理由；站长会在收到后复核。"
     : "如果你是权利人，或发现侵权内容，请填写下方信息；站长会在收到后处理。";
   const error = submit.data && !submit.data.ok ? submit.data.reason : submit.error?.message ?? "";
-  // 只要求"说明"有内容；标题可留空（自动从说明截取），避免用户填了内容却点不动按钮
-  const canSubmit = body.trim().length >= 5 && !submit.isPending;
+  // 只要求“说明”不为空；标题可留空（自动从说明截取）
+  const canSubmit = body.trim().length > 0 && !submit.isPending;
   const effectiveSubject = subject.trim() || body.trim().slice(0, 30) || title;
 
   return (
@@ -88,7 +88,8 @@ export default function FeedbackDialog({ open, kind, defaultRef = "", deviceId, 
               style={{ width: "100%", boxSizing: "border-box", padding: "9px 10px", border: "1px solid #dce2eb", borderRadius: 8, marginBottom: 12 }} />
 
             {error && <p style={{ color: "#b3261e", fontSize: 13, margin: "0 0 10px" }}>{error === "rate-limited" ? "提交太频繁，请稍后再试。" : error}</p>}
-            {!canSubmit && <p style={{ color: "#7c8798", fontSize: 12, margin: "0 0 8px" }}>请先在「具体说明」里写至少 5 个字。</p>}
+            {!canSubmit && <p style={{ color: "#7c8798", fontSize: 12, margin: "0 0 8px" }}>请先填写「具体说明」。</p>}
+            <p style={{ color: "#9aa6b5", fontSize: 12, margin: "0 0 8px", textAlign: "right" }}>{body.trim().length} / 2000</p>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
               <button onClick={onClose} style={{ padding: "9px 16px", borderRadius: 8, border: "1px solid #dce2eb", background: "#fff", cursor: "pointer" }}>取消</button>

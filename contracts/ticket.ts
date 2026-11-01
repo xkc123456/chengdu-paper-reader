@@ -3,7 +3,7 @@ import { z } from "zod";
 export const ticketInput = z.object({
   kind: z.enum(["complaint", "appeal"]),
   subject: z.string().min(1).max(100),
-  body: z.string().min(5).max(2000),
+  body: z.string().min(1).max(2000),
   /** 联系方式（邮箱/微信均可，可选） */
   contact: z.string().max(100).optional(),
   /** 涉及的标题或链接，便于核对 */
