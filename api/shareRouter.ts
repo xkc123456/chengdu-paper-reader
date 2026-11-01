@@ -1,7 +1,7 @@
 import { shareCreateInput, shareGetInput, shareRemoveInput } from "@contracts/share";
 import { createRouter, publicQuery } from "./middleware";
 import { clientKey, take } from "./lib/ratelimit";
-import { createShare, getShare, isShareStore, randomToken, removeShare, sha256Hex } from "./lib/shares";
+import { createShare, getShare, isShareStore, randomToken, removeShare, sha256Hex, shareIdForArchive } from "./lib/shares";
 import { getArchive, isArchiveStore } from "./lib/archives";
 import { log } from "./lib/logger";
 
@@ -33,6 +33,12 @@ export const shareRouter = createRouter({
     }
 
     const token = randomToken(32);
+    // 一篇存档只保留一个公开链接：重新生成即替换旧的。
+    // 旧版只覆盖 x:<archiveId> 索引、不删旧 s:<id>，于是下架时级联不到旧链接，
+    // 用户以为"链接已失效"，实际旧地址仍能读到完整解析结果。
+    const previous = await shareIdForArchive(shareStore, input.archiveId);
+    if (previous) await removeShare(shareStore, previous);
+
     const { record, id } = await createShare(shareStore, {
       archiveId: input.archiveId,
       title: input.title,

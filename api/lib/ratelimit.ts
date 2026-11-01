@@ -45,9 +45,13 @@ export function take(key: string, limit: number, now = Date.now()): RateLimitRes
   return { ok: true, remaining: limit - recent.length, retryAfterSec: 0 };
 }
 
-/** 从反代头里取真实客户端 IP；取不到就归到同一个桶里 */
+/**
+ * 取真实客户端 IP；取不到就归到同一个桶里。
+ *
+ * 顺序不能反：X-Forwarded-For 在 Cloudflare 是「追加」语义，客户端自己发的值会留在
+ * 第一位，按它计数等于让攻击者每次换一个假 IP 绕过限流。cf-connecting-ip 由边缘节点
+ * 写入、客户端无法覆盖，才是可信来源；x-real-ip 仅作为本地/自建反代时的兜底。
+ */
 export function clientKey(headers: Headers): string {
-  const forwarded = headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return headers.get("x-real-ip") ?? headers.get("cf-connecting-ip") ?? "unknown";
+  return headers.get("cf-connecting-ip") ?? headers.get("x-real-ip") ?? "unknown";
 }
