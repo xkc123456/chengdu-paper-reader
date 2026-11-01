@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { AnalysisResult } from "@contracts/analysis";
 import { trpc } from "../providers/trpc";
 
@@ -34,6 +34,19 @@ export default function ShareDialog({ open, onClose, deviceId, archiveId, title,
   const remove = trpc.share.remove.useMutation({
     onSuccess: () => setLink(null),
   });
+
+  // 每次重新打开都从"未生成"开始：否则上一次的链接/报错会留在弹窗里，
+  // 用户会以为新链接已经建好了。
+  useEffect(() => {
+    if (open) {
+      setLink(null);
+      setCopied(false);
+      setDays(7);
+      create.reset();
+      remove.reset();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   if (!open) return null;
 

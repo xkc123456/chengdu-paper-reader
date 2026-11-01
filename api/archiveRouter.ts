@@ -3,6 +3,7 @@ import { archiveSaveInput } from "@contracts/archive";
 import { createRouter, publicQuery } from "./middleware";
 import { clientKey, take } from "./lib/ratelimit";
 import { getArchive, isArchiveStore, listOwnArchives, saveArchive, takedownArchive } from "./lib/archives";
+import { isShareStore, removeShareByArchive } from "./lib/shares";
 import { log } from "./lib/logger";
 
 const MAX_PAYLOAD = 400 * 1024;
@@ -58,6 +59,9 @@ export const archiveRouter = createRouter({
       if (!isArchiveStore(store)) return { ok: false as const, reason: "unavailable" as const };
       const record = await getArchive(store, input.id);
       if (!record || record.deviceId !== input.deviceId) return { ok: false as const, reason: "not-found" as const };
+      // 先撤公开链接再删存档：否则用户删了存档，旧分享地址仍然能读到内容
+      const shareStore = ctx.env?.SHARE;
+      if (isShareStore(shareStore)) await removeShareByArchive(shareStore, input.id);
       await takedownArchive(store, input.id, "user deleted");
       return { ok: true as const };
     }),
