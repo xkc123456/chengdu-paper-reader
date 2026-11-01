@@ -2,7 +2,7 @@ import { z } from "zod";
 import { archiveSaveInput } from "@contracts/archive";
 import { createRouter, publicQuery } from "./middleware";
 import { clientKey, take } from "./lib/ratelimit";
-import { getArchive, isArchiveStore, listOwnArchives, saveArchive, takedownArchive } from "./lib/archives";
+import { getArchive, isArchiveStore, listOwnArchives, listTakedownsForDevice, saveArchive, takedownArchive } from "./lib/archives";
 import { isShareStore, removeShareByArchive } from "./lib/shares";
 import { log } from "./lib/logger";
 
@@ -51,6 +51,14 @@ export const archiveRouter = createRouter({
     return { ok: true as const, items };
   }),
 
+  /** 这台设备被下架过什么（用户端提示，不含操作人/投诉人） */
+  notices: publicQuery.input(z.object({ deviceId: z.string().min(8).max(64) })).query(async ({ input, ctx }) => {
+    const store = ctx.env?.ARCHIVE;
+    if (!isArchiveStore(store)) return { ok: false as const, items: [] };
+    const items = await listTakedownsForDevice(store, input.deviceId);
+    return { ok: true as const, items };
+  }),
+
   /** 用户自己删掉一份存档（真删，不是标记） */
   remove: publicQuery
     .input(z.object({ deviceId: z.string().min(8).max(64), id: z.string().min(6).max(64) }))
@@ -61,8 +69,12 @@ export const archiveRouter = createRouter({
       if (!record || record.deviceId !== input.deviceId) return { ok: false as const, reason: "not-found" as const };
       // 先撤公开链接再删存档：否则用户删了存档，旧分享地址仍然能读到内容
       const shareStore = ctx.env?.SHARE;
-      if (isShareStore(shareStore)) await removeShareByArchive(shareStore, input.id);
-      await takedownArchive(store, input.id, "user deleted");
+      const revoked = isShareStore(shareStore) ? await removeShareByArchive(shareStore, input.id) : null;
+      await takedownArchive(store, input.id, "user deleted", {
+        operator: "user",
+        source: "self",
+        shareRevoked: Boolean(revoked),
+      });
       return { ok: true as const };
     }),
 });

@@ -103,14 +103,23 @@ export async function takedownArchive(
   store: ArchiveStore,
   id: string,
   reason: string,
-): Promise<{ ok: boolean; title: string }> {
+  extra: Partial<TakedownRecord> = {},
+): Promise<{ ok: boolean; title: string; at: string; deviceId: string }> {
   const meta = await getMeta(store, id);
   const title = meta?.title ?? "";
+  const deviceId = meta?.deviceId ?? "";
   await store.delete(KEY.full(id));
   await store.delete(KEY.meta(id));
-  const record: TakedownRecord = { at: new Date().toISOString(), id, title, reason };
+  const record: TakedownRecord = {
+    ...extra,
+    at: new Date().toISOString(),
+    id,
+    title,
+    reason,
+    deviceId: extra.deviceId ?? deviceId,
+  };
   await store.put(KEY.takedown(record.at, id), JSON.stringify(record));
-  return { ok: true, title };
+  return { ok: true, title, at: record.at, deviceId: record.deviceId ?? "" };
 }
 
 export async function listTakedowns(store: ArchiveStore, limit = 50): Promise<TakedownRecord[]> {
@@ -140,4 +149,17 @@ export async function listTakedowns(store: ArchiveStore, limit = 50): Promise<Ta
 export async function listOwnArchives(store: ArchiveStore, deviceId: string): Promise<ArchiveMeta[]> {
   const all = await listArchives(store, 500);
   return all.filter((item) => item.deviceId === deviceId);
+}
+
+/** 这台设备被下架过什么（用户端提示用；不含操作人/投诉人等内部字段） */
+export async function listTakedownsForDevice(
+  store: ArchiveStore,
+  deviceId: string,
+  limit = 20,
+): Promise<{ at: string; title: string; reason: string }[]> {
+  const all = await listTakedowns(store, 200);
+  return all
+    .filter((item) => item.deviceId === deviceId)
+    .slice(0, limit)
+    .map((item) => ({ at: item.at, title: item.title, reason: item.reason }));
 }

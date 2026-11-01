@@ -47,4 +47,14 @@ export interface TakedownRecord {
   id: string;
   title: string;
   reason: string;
+  /** 谁发起的：admin（站长）/ user（用户自己删）/ complaint（权利人投诉） */
+  operator?: string;
+  /** 发现来源：complaint（投诉）/ patrol（巡查）/ report（举报）/ self（本人） */
+  source?: string;
+  /** 投诉人/请求方（可选，便于举证） */
+  requester?: string;
+  /** 内容归属的设备（用于给用户提示，不含身份信息） */
+  deviceId?: string;
+  /** 下架时是否同时撤销了公开链接 */
+  shareRevoked?: boolean;
 }

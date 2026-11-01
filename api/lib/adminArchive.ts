@@ -26,6 +26,17 @@ function kb(size: number): string {
   return size > 1024 * 1024 ? `${(size / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(size / 1024))} KB`;
 }
 
+function sourceLabel(source?: string): string {
+  switch (source) {
+    case "complaint": return "权利人投诉";
+    case "report": return "用户举报";
+    case "patrol": return "站长巡查";
+    case "self": return "本人删除";
+    case "other": return "其他";
+    default: return source || "—";
+  }
+}
+
 /**
  * 处理 `view` / `delete` 两种动作。没有动作时返回 null，让调用方继续渲染列表页。
  */
@@ -36,6 +47,24 @@ export async function handleArchiveAdmin(
   shareStore?: ShareStore,
 ): Promise<Response | null> {
   if (!store) return null;
+
+  // 下架记录导出：用于向权利人或监管证明「何时、因何、处置了什么」
+  if (c.req.query("log") === "csv") {
+    const rows = await listTakedowns(store, 500);
+    const header = ["时间", "标题", "原因", "来源", "操作人", "请求方", "链接已撤"];
+    const lines = rows.map((r) =>
+      [r.at, r.title, r.reason, sourceLabel(r.source), r.operator ?? "", r.requester ?? "", r.shareRevoked ? "已撤" : ""]
+        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+        .join(","),
+    );
+    const csv = "\uFEFF" + [header.join(","), ...lines].join("\n");
+    return new Response(csv, {
+      headers: {
+        "content-type": "text/csv; charset=utf-8",
+        "content-disposition": `attachment; filename="takedown-log-${new Date().toISOString().slice(0, 10)}.csv"`,
+      },
+    });
+  }
 
   const view = c.req.query("view");
   if (view) {
@@ -67,7 +96,14 @@ export async function handleArchiveAdmin(
     <form method="post" action="/admin?key=${encodeURIComponent(key)}" class="row" style="flex:1">
       <input type="hidden" name="action" value="delete">
       <input type="hidden" name="id" value="${esc(record.id)}">
-      <input type="text" name="reason" placeholder="下架原因（会写进日志，例如：权利人投诉）">
+      <select name="source" style="padding:8px 10px;border:1px solid #dce2eb;border-radius:7px">
+        <option value="complaint">权利人投诉</option>
+        <option value="report">用户举报</option>
+        <option value="patrol">站长巡查</option>
+        <option value="other">其他</option>
+      </select>
+      <input type="text" name="requester" placeholder="投诉人/请求方（可选，写进日志）">
+      <input type="text" name="reason" placeholder="下架原因（写进日志，例如：侵犯著作权）">
       <button type="submit" onclick="return confirm('确认下架并删除？删除后不可恢复。')">一键下架</button>
     </form>
   </div>
@@ -85,10 +121,17 @@ export async function handleArchiveAdmin(
   if (action === "delete") {
     const id = String(body.id ?? c.req.query("id") ?? "");
     const reason = String(body.reason ?? "").trim() || "站长下架";
+    const source = String(body.source ?? "").trim() || "patrol";
+    const requester = String(body.requester ?? "").trim();
     if (!id) return c.text("Bad Request", 400);
     // 先删公开链接，再删存档：任何一步失败都不会留下「链接还活着、内容已删」的半截状态
-    if (shareStore) await removeShareByArchive(shareStore, id);
-    await takedownArchive(store, id, reason);
+    const revoked = shareStore ? await removeShareByArchive(shareStore, id) : null;
+    await takedownArchive(store, id, reason, {
+      operator: "admin",
+      source,
+      requester,
+      shareRevoked: Boolean(revoked),
+    });
     // 删完回列表；不把标题带进 URL
     return c.redirect(`/admin?key=${encodeURIComponent(key)}&done=1`, 303);
   }
@@ -113,7 +156,17 @@ export async function renderArchiveSection(store: ArchiveStore, key: string): Pr
     .join("");
 
   const logRows = takedowns
-    .map((item) => `<li><span class="mono dim">${esc(item.at.slice(0, 16).replace("T", " "))}</span> ${esc(item.title || item.id)} <span class="dim">· ${esc(item.reason)}</span></li>`)
+    .map(
+      (item) => `<tr>
+        <td class="mono">${esc(item.at.slice(0, 19).replace("T", " "))}</td>
+        <td><b>${esc(item.title || item.id)}</b></td>
+        <td>${esc(item.reason)}</td>
+        <td>${esc(sourceLabel(item.source))}</td>
+        <td class="mono dim">${esc(item.operator || "—")}</td>
+        <td class="dim">${esc(item.requester || "—")}</td>
+        <td class="dim">${item.shareRevoked ? "已撤" : "—"}</td>
+      </tr>`,
+    )
     .join("");
 
   return `<div class="lock">
@@ -122,7 +175,10 @@ export async function renderArchiveSection(store: ArchiveStore, key: string): Pr
     <div class="card" style="margin-top:10px">
       ${items.length ? `<table><thead><tr><th>时间</th><th>标题</th><th>学科</th><th>设备</th><th>大小</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">还没有云存档。用户点「存到云端」后，这里会出现。</div>`}
     </div>
-    <div class="sub" style="margin:14px 0 6px">最近下架（${takedowns.length}）</div>
-    ${logRows ? `<ul class="hint" style="padding-left:18px">${logRows}</ul>` : `<p class="hint">还没有下架记录。</p>`}
+    <div class="sub" style="margin:14px 0 6px">下架记录（最近 ${takedowns.length} 条，可作处置留痕）</div>
+    ${takedowns.length
+      ? `<div class="card"><table><thead><tr><th>时间</th><th>标题</th><th>原因</th><th>来源</th><th>操作人</th><th>请求方</th><th>链接</th></tr></thead><tbody>${logRows}</tbody></table></div>
+         <p class="hint"><a href="/admin?key=${encodeURIComponent(key)}&log=csv">导出下架记录 CSV</a></p>`
+      : `<p class="hint">还没有下架记录。</p>`}
   </div>`;
 }

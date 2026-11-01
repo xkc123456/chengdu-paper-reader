@@ -15,6 +15,7 @@ export default function ArchivePanel({ open, deviceId, onClose, onOpen }: Props)
   const [error, setError] = useState("");
 
   const list = trpc.archive.mine.useQuery({ deviceId }, { enabled: open, staleTime: 10_000 });
+  const notices = trpc.archive.notices.useQuery({ deviceId }, { enabled: open, staleTime: 10_000 });
   const remove = trpc.archive.remove.useMutation({
     onSuccess: () => { void utils.archive.mine.invalidate(); },
   });
@@ -60,6 +61,19 @@ export default function ArchivePanel({ open, deviceId, onClose, onOpen }: Props)
         </div>
 
         {error && <p style={{ color: "#b3261e", fontSize: 13 }}>{error}</p>}
+        {notices.data?.ok && notices.data.items.length > 0 && (
+          <div style={{ border: "1px solid #f0c9a8", background: "#fff7f0", borderRadius: 10, padding: "10px 12px", marginBottom: 12 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#8a4b1e", marginBottom: 6 }}>
+              有 {notices.data.items.length} 篇内容已被下架
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "#8a4b1e", lineHeight: 1.8 }}>
+              {notices.data.items.map((n) => (
+                <li key={n.at + n.title}>{n.title || "（无标题）"} · {n.reason} · {new Date(n.at).toLocaleDateString("zh-CN")}</li>
+              ))}
+            </ul>
+            <p style={{ margin: "6px 0 0", fontSize: 12, color: "#8a4b1e" }}>如认为处理有误，可回复站长的通知邮件申诉。</p>
+          </div>
+        )}
         {list.isError && <p style={{ color: "#b3261e", fontSize: 13 }}>加载失败，请点「刷新」重试。</p>}
         {list.isLoading && <p style={{ color: "#7c8798", fontSize: 13 }}>加载中…</p>}
 
