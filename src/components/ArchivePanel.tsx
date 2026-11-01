@@ -71,7 +71,7 @@ export default function ArchivePanel({ open, deviceId, onClose, onOpen }: Props)
                 <li key={n.at + n.title}>{n.title || "（无标题）"} · {n.reason} · {new Date(n.at).toLocaleDateString("zh-CN")}</li>
               ))}
             </ul>
-            <p style={{ margin: "6px 0 0", fontSize: 12, color: "#8a4b1e" }}>如认为处理有误，可回复站长的通知邮件申诉。</p>
+            <p style={{ margin: "6px 0 0", fontSize: 12, color: "#8a4b1e" }}>如认为处理有误，可联系站长申诉。</p>
           </div>
         )}
         {list.isError && <p style={{ color: "#b3261e", fontSize: 13 }}>加载失败，请点「刷新」重试。</p>}
