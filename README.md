@@ -6,7 +6,7 @@
 
 ## 功能
 
-- **导入**：粘贴文字，上传 PDF / DOCX / TXT / MD / CSV，或上传、粘贴截图做中英文 OCR（全部在浏览器本地完成）。
+- **导入**：粘贴文字，上传 PDF / DOCX / TXT / MD / CSV，或上传、粘贴截图做中英文 OCR。
 - **校对**：PDF、Word、OCR 的结果都可以先改再解析，避免为了一个错字重复调用模型。
 - **五种视图**：老师讲解、主体关系、分栏对照、数据图表、原文定位。
 - **学习辅助**：术语解释、研究问题、核心结论、阅读边界、下一步自查，以及 Markdown 笔记导出。
@@ -55,6 +55,8 @@ npm run cf:deploy  # 部署，几十秒后给出 *.workers.dev 网址
 `compatibility_flags` 打开 `nodejs_compat`，这样 `api/` 里的 `process.env`、`node:path` 不用改。
 本地预览用 `npm run cf:dev`（在 workerd 里跑，和线上是同一个运行时）。
 
+文档收件箱的配置和 curl 示例见 [INBOX.md](INBOX.md)。部署前需要创建 R2 桶并设置 `INBOX_TOKEN`。
+
 > 免费版单次请求有 **10ms CPU** 上限（等待模型的时间不算 CPU，但 JSON 解析与校验算）。
 > 如果日志里出现 `1102` / "Worker exceeded CPU time limit"，升级到付费版（$5/月）或改用下面的 B 方案。
 
@@ -91,7 +93,9 @@ api/paperRouter.ts               解析接口：限流、选 Key、提示词、�
 api/ai/provider.ts               OpenAI 兼容接入（默认 DeepSeek）
 api/ai/ai-client.ts              模型错误 → 语义类型
 api/lib/ratelimit.ts             单进程内存限流
+api/lib/inbox.ts                 文档收件箱：类型与大小校验、R2/KV、后台查看
 src/lib/extract.ts               PDF / Word / 文本 / 截图识别
+src/lib/inboxSync.ts             导入成功后把副本交给收件箱（失败不打断阅读）
 src/lib/key.ts                   访客 Key 的本地存取
 src/components/ImportPanel.tsx   三种导入方式、校对与 Key 输入
 src/components/                  关系图、图表、分栏等阅读组件

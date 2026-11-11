@@ -7,6 +7,7 @@ import { createContext, type WorkerBindings } from "./context";
 import { log } from "./lib/logger";
 import { handleClientLog } from "./lib/clientlog";
 import { handleAdmin, type AdminContext } from "./lib/admin";
+import { handlePartnerInbox, handleVisitorInbox, inboxTokenOk, INBOX_BODY_LIMIT } from "./lib/inbox";
 import { REQUEST_ID_HEADER, runWithRequestId } from "./lib/requestcontext";
 
 const app = new Hono<{ Bindings: HttpBindings }>();
@@ -73,6 +74,24 @@ app.use("/api/trpc/*", async (c) => {
 app.post(
   "/api/log",  bodyLimit({ maxSize: 64 * 1024, onError: (c) => c.body(null, 413) }),
   handleClientLog,
+);
+// 合作方上传。口令不对直接 404，并且不读 body。INBOX_TOKEN 只活在 Worker 绑定里。
+const inboxTooBig = (c: { json: (body: unknown, status: 413) => Response }) =>
+  c.json({ error: "文件超过 10MB 上限" }, 413);
+app.post(
+  "/api/inbox",
+  (c, next) => {
+    if (!inboxTokenOk(c.env, c.req.header("authorization"))) return c.text("Not Found", 404);
+    return next();
+  },
+  bodyLimit({ maxSize: INBOX_BODY_LIMIT, onError: inboxTooBig }),
+  (c) => handlePartnerInbox(c.req.raw, c.env),
+);
+// 访客导入后的副本。不接受、也不要求 INBOX_TOKEN / ADMIN_KEY。
+app.post(
+  "/api/inbox/visitor",
+  bodyLimit({ maxSize: INBOX_BODY_LIMIT, onError: inboxTooBig }),
+  (c) => handleVisitorInbox(c.req.raw, c.env),
 );
 app.all("/api/*", (c) => c.json({ error: "Not Found" }, 404));
 

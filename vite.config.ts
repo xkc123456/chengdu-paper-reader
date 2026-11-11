@@ -16,7 +16,8 @@ function homeStaticBody(): Plugin {
 
 export default defineConfig({
   plugins: [
-    devServer({ entry: "api/boot.ts", exclude: [/^\/(?!api\/).*$/] }),
+    // /api 与 /admin 交给 Hono。其余路径留给 Vite，避免后台被首页壳吞掉。
+    devServer({ entry: "api/boot.ts", exclude: [/^\/(?!api\/|admin(?:$|[/?])).*$/] }),
     react(),
     homeStaticBody()],
   envDir: path.resolve(__dirname),

@@ -101,7 +101,6 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, summary:focus-vis
 .import-topline > div { display: flex; align-items: center; gap: 10px; }
 .step-index { color: var(--accent); font: 11px/1 var(--mono); }
 .import-topline h2 { font-size: 18px; font-weight: 700; }
-.privacy { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; white-space: nowrap; }
 .import-tabs { display: grid; grid-template-columns: repeat(3, 1fr); padding: 3px; background: var(--raised); border-radius: 7px; gap: 3px; }
 .import-tabs button { min-height: 44px; border: 0; border-radius: 5px; background: transparent; color: var(--muted); display: flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer; font-size: 13px; transition: background var(--fast), color var(--fast); }
 .import-tabs button.active { background: var(--panel); color: var(--ink); box-shadow: 0 0 0 1px var(--line); font-weight: 600; }
@@ -377,7 +376,6 @@ footer > div a:hover { color: var(--accent); }
   .hero-proof { margin-top: 24px; }
   .import-panel { padding: 18px 14px; border-radius: 9px; }
   .import-topline { align-items: flex-start; }
-  .privacy { max-width: 112px; white-space: normal; text-align: right; line-height: 1.5; }
   .import-tabs button { gap: 5px; font-size: 12px; }
   .key-hint { font-size: 10.5px; }
   .capability-strip { padding: 14px 18px; justify-content: flex-start; gap: 10px 20px; }

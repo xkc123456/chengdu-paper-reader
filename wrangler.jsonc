@@ -15,7 +15,14 @@
     "not_found_handling": "single-page-application",
     // 这些路径必须先交给 Worker：否则 SPA 回退会直接返回 index.html。
     // /admin 会变成首页，/api 到不了 Hono，/robots.txt 与 /sitemap.xml 会变成壳页。
-    "run_worker_first": ["/admin", "/api/*", "/robots.txt", "/sitemap.xml"],
+    // /api/* 覆盖 /api/inbox 与 /api/inbox/visitor；/admin 与 /admin/* 覆盖收件箱的查看和下载。
+    "run_worker_first": [
+      "/admin",
+      "/admin/*",
+      "/api/*",
+      "/robots.txt",
+      "/sitemap.xml",
+    ],
   },
   "observability": {
     "enabled": true,
@@ -28,6 +35,10 @@
     { "binding": "ARCHIVE", "id": "9a5f8f6ea3734185ae47932a49c36ae8" },
     { "binding": "SHARE", "id": "af5736be665b4395abf722f876365698" },
   ],
+  // 文档收件箱的文件正文。元信息仍写在 PROFILES，键前缀 inbox:。
+  // 部署前先建桶：`npx wrangler r2 bucket create cdreader-inbox`
+  // 合作方口令：`npx wrangler secret put INBOX_TOKEN`（不要写进仓库，也不要放进前端）
+  "r2_buckets": [{ "binding": "INBOX", "bucket_name": "cdreader-inbox" }],
   // 自定义域：zone 激活后由 Cloudflare 自动创建 DNS 记录并签发证书，
   // 不需要手动加 A/CNAME。部署前 zone 必须是 Active，否则 wrangler 会报错。
   "routes": [
