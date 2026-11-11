@@ -11,8 +11,10 @@
 import app from "./boot";
 import { serveCrawlBody, isCrawlPath, SITEMAP_PATH } from "./crawl";
 import { robotsTxt, sitemapXml } from "./crawl-assets";
+import type { WorkerBindings } from "./context";
+import { isAppPath } from "./appPaths";
 
-interface WorkerEnv {
+interface WorkerEnv extends WorkerBindings {
   ASSETS: { fetch: (request: Request) => Promise<Response> };
 }
 
@@ -25,12 +27,9 @@ export default {
       const body = pathname === SITEMAP_PATH ? sitemapXml : robotsTxt;
       return serveCrawlBody(pathname, body);
     }
-    // /admin 也交给应用处理，否则会被 Assets 的单页回退吃掉
-    if (
-      pathname === "/admin" ||
-      pathname === "/api" ||
-      pathname.startsWith("/api/")
-    ) {
+    // /admin（含收件箱查看/下载）和 /api（含 /api/inbox）交给应用，
+    // 否则会被 Assets 的单页回退吃掉。
+    if (isAppPath(pathname)) {
       // env 要透传进去：tRPC 上下文与 /admin 都靠它拿 KV 绑定
       return app.fetch(
         request,

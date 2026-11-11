@@ -8,6 +8,7 @@
 import { DEFAULT_LOCK_MESSAGE, readLock, writeLock } from "./lock";
 import { handleArchiveAdmin, renderArchiveSection, handleTicketsAdmin, renderTicketsSection } from "./adminArchive";
 import type { ArchiveStore } from "./archives";
+import { handleInboxAdmin, renderInboxSection, type InboxBucket } from "./inbox";
 
 interface KvLike {
   list(options?: { prefix?: string; limit?: number; cursor?: string }): Promise<{
@@ -24,6 +25,8 @@ export interface AdminEnv {
   ARCHIVE?: ArchiveStore;
   SHARE?: ArchiveStore;
   ADMIN_KEY?: string;
+  /** 文档正文。没绑定时收件箱仍能列出元信息，打开文件会返回明确错误。 */
+  INBOX?: InboxBucket;
 }
 
 export interface AdminContext {
@@ -33,7 +36,7 @@ export interface AdminContext {
   };
   env: unknown;
   html(body: string): Response;
-  text(body: string, status?: 200 | 404 | 500): Response;
+  text(body: string, status?: number): Response;
   redirect(location: string, status?: 303): Response;
 }
 
@@ -113,6 +116,9 @@ export async function handleAdmin(c: AdminContext): Promise<Response> {
   }
 
   const lock = await readLock(store);
+  const inboxResponse = await handleInboxAdmin(c, env, provided);
+  if (inboxResponse) return inboxResponse;
+  const inboxHtml = await renderInboxSection(store, env.INBOX, provided);
   const rows = await readAll(store);
 
   // 论文云存档：/admin?key=..&view=<id> 看单篇；POST action=delete 下架（会级联删公开链接）
@@ -195,6 +201,8 @@ export async function handleAdmin(c: AdminContext): Promise<Response> {
     </form>
     <p class="hint">暂停后访客看到说明页、解析接口返回 503，数据仍保留；生效通常 10–60 秒（KV 缓存）。</p>
   </div>
+
+  ${inboxHtml}
 
   ${archiveHtml}
 
