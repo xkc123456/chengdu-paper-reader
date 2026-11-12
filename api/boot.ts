@@ -4,6 +4,7 @@ import type { HttpBindings } from "@hono/node-server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
 import { createContext, type WorkerBindings } from "./context";
+import { getDefaultBindings } from "./lib/bindings";
 import { log } from "./lib/logger";
 import { handleClientLog } from "./lib/clientlog";
 import { handleAdmin, type AdminContext } from "./lib/admin";
@@ -63,8 +64,11 @@ app.use("/api/trpc/*", async (c) => {
     endpoint: "/api/trpc",
     req: c.req.raw,
     router: appRouter,
-    // 把 Workers 的绑定透传给 tRPC 上下文（Node 下 c.env 是空的，KV 上报会自动降级成日志）
-    createContext: (opts) => createContext(opts, c.env as unknown as WorkerBindings),
+    // 把 Workers 的绑定透传给 tRPC 上下文。
+    // Node 下平台绑定为空，先铺一层进程级默认值（api/server.ts 注入的本地文件存储），
+    // 这样「存到云端」「文献地图」在本地也能真的跑起来，而不是一律 unavailable。
+    createContext: (opts) =>
+      createContext(opts, { ...getDefaultBindings(), ...(c.env as unknown as WorkerBindings) }),
   });
 });
 // Browser-side log sink (see lib/clientlog.ts). Must be registered before the

@@ -48,4 +48,6 @@ export const env = {
   /** 每个 IP 每小时的解析次数上限：即使有人刷，消耗的也是他自己那份 Key */
   rateLimitPerHour: int("RATE_LIMIT_PER_HOUR", 30),
   logDir: text("LOG_DIR") || defaultLogDir(),
+  /** 本地运行时的数据目录：没绑 KV 时，存档/分享落在 <dataDir>/store 下的 JSON 文件里 */
+  dataDir: text("DATA_DIR") || path.join(process.cwd(), ".data"),
 };

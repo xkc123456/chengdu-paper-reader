@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import {
-  ArrowDown, ArrowRight, BookOpen, ChartNoAxesCombined, Check, ChevronRight,
-  Columns3, Download, FileText, FolderOpen, GraduationCap, Lightbulb, Network, Search, Share2, Upload, AlertTriangle,
+  ArrowDown, ArrowRight, BookOpen, BrainCircuit, ChartNoAxesCombined, Check, ChevronRight,
+  Columns3, FileText, FolderOpen, GraduationCap, Lightbulb, Network, Search, Share2, Upload, AlertTriangle,
 } from "lucide-react";
 import type { AnalysisResult } from "@contracts/analysis";
 import { trpc } from "./providers/trpc";
@@ -22,47 +22,23 @@ import ShareDialog from "./components/ShareDialog";
 import SharedPaper from "./components/SharedPaper";
 import ArchivePanel from "./components/ArchivePanel";
 import FeedbackDialog from "./components/FeedbackDialog";
+import RecallPanel from "./components/RecallPanel";
+import MapPanel from "./components/MapPanel";
+import ExportMenu from "./components/ExportMenu";
 
-type Tab = "guide" | "relations" | "compare" | "charts" | "source";
+type Tab = "guide" | "relations" | "compare" | "charts" | "recall" | "source";
 
 const TABS: { id: Tab; label: string; icon: typeof BookOpen }[] = [
   { id: "guide", label: "老师讲解", icon: GraduationCap },
   { id: "relations", label: "主体关系", icon: Network },
   { id: "compare", label: "分栏对照", icon: Columns3 },
   { id: "charts", label: "数据图表", icon: ChartNoAxesCombined },
+  { id: "recall", label: "复述检验", icon: BrainCircuit },
   { id: "source", label: "原文定位", icon: FileText },
 ];
 
 function BrandMark() {
   return <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 7.5c4.5-.6 8.1.3 11 2.8v15c-2.9-2.5-6.5-3.4-11-2.8zM27 7.5c-4.5-.6-8.1.3-11 2.8v15c2.9-2.5 6.5-3.4 11-2.8z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M16 10.3v15" stroke="currentColor" strokeWidth="1.8"/></svg>;
-}
-
-function downloadNotes(result: AnalysisResult) {
-  const lines = [
-    `# ${result.title}｜精读笔记`, "", `> ${result.oneSentence}`, "",
-    `## 研究问题`, result.researchQuestion, "", `## 核心结论`, result.coreClaim, "",
-    `## 老师讲解`,
-    ...result.lessons.flatMap((lesson, index) => [
-      `### ${index + 1}. ${lesson.heading}`, lesson.explanation, "", `**类比：** ${lesson.analogy}`, "", `**原文依据：** ${lesson.evidence}`, "",
-    ]),
-    `## 主体关系`,
-    ...result.relations.map((relation) => {
-      const source = result.entities.find((entity) => entity.id === relation.source)?.name ?? relation.source;
-      const target = result.entities.find((entity) => entity.id === relation.target)?.name ?? relation.target;
-      return `- ${source} —[${relation.label}]→ ${target}`;
-    }), "",
-    `## 术语表`, ...result.glossary.map((item) => `- **${item.term}：** ${item.explanation}`), "",
-    `## 阅读边界`, ...result.limitations.map((item) => `- ${item}`), "",
-    `## 下一步`, ...result.nextSteps.map((item) => `- ${item}`),
-  ];
-  const url = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" }));
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = "paper-reading-notes.md";
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export default function App() {
@@ -73,6 +49,8 @@ export default function App() {
   const [activeSection, setActiveSection] = useState(0);
   const [selectedChart, setSelectedChart] = useState(0);
   const [query, setQuery] = useState("");
+  const [focusQuote, setFocusQuote] = useState("");
+  const [mapOpen, setMapOpen] = useState(false);
   const [isSample, setIsSample] = useState(true);
   const [dirty, setDirty] = useState(false);
   // 院校信息：首次进入必须填写，填完存本机并上报一份，右上角可修改
@@ -129,6 +107,8 @@ export default function App() {
   };
   const sourceParagraphs = useMemo(() => text.split(/\n+/).map((item) => item.trim()).filter((item) => item.length > 0), [text]);
   const filteredParagraphs = sourceParagraphs.filter((paragraph) => !query || paragraph.toLowerCase().includes(query.toLowerCase()));
+  // 复述记录的本地键：标题 + 领域足够区分同一批存档里的不同论文
+  const paperKey = useMemo(() => `${result.title}|${result.field}`, [result.title, result.field]);
 
   const goToSection = (index: number) => {
     setActiveSection(index);
@@ -198,13 +178,16 @@ export default function App() {
           <div className="workbench-heading">
             <div>
               <span className="eyebrow">YOUR READING DESK · 02</span>
-              <h2>一篇论文，五种看法</h2>
+              <h2>从六个角度，读一篇论文</h2>
             </div>
             <div className="workbench-actions">
               {isSample && <span className="sample-badge">教学示例</span>}
               {dirty && <span className="dirty-badge">原文已修改，待重新解析</span>}
               <button className="secondary-button" onClick={loadSample}>重置示例</button>
-              <button className="secondary-button" onClick={() => downloadNotes(result)}><Download size={16} />导出笔记</button>
+              <ExportMenu result={result} />
+              <button className="secondary-button" onClick={() => setMapOpen(true)} title="把已存档的论文排成一张表，看它们之间的关系">
+                <Columns3 size={16} />文献地图
+              </button>
               <button className="secondary-button" onClick={() => setArchiveOpen(true)}><FolderOpen size={16} />我的存档</button>
               <button
                 className="secondary-button"
@@ -279,12 +262,30 @@ export default function App() {
                 </div>
               )}
 
+              {tab === "recall" && (
+                <RecallPanel
+                  result={result}
+                  paperKey={paperKey}
+                  onJump={(quote, heading) => {
+                    setQuery("");
+                    setTab("source");
+                    setFocusQuote((quote || heading || "").trim());
+                    window.setTimeout(() => {
+                      document.querySelector(".source-paragraphs .focus")?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }, 160);
+                  }}
+                />
+              )}
+
               {tab === "source" && (
                 <div className="source-view"><header className="view-heading"><span className="eyebrow">BACK TO THE PAPER</span><h2>回到原文，核对每一步理解</h2><p>左侧结构可定位章节；搜索框只筛选当前已导入、已识别的文字。</p></header>
                   <label className="source-search"><Search size={17} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索变量、术语或一句话…" /><span>{filteredParagraphs.length} 段</span></label>
                   <div className="source-paragraphs">{filteredParagraphs.map((paragraph, index) => {
                     const sectionIndex = result.sections.findIndex((section) => paragraph.includes(section.excerpt.slice(0, Math.min(18, section.excerpt.length))) || section.excerpt.includes(paragraph.slice(0, Math.min(18, paragraph.length))));
-                    return <p key={`${paragraph.slice(0, 20)}-${index}`} id={sectionIndex >= 0 ? `source-section-${sectionIndex}` : undefined} className={sectionIndex === activeSection ? "highlight" : ""}>{paragraph}</p>;
+                    // 复述题点「回原文」时，把命中那段标出来；只比前 12 个字，避免标点/换行差异导致匹配不上
+                    const focused = Boolean(focusQuote) && paragraph.replace(/\s+/g, "").includes(focusQuote.replace(/\s+/g, "").slice(0, 12));
+                    const className = [sectionIndex === activeSection ? "highlight" : "", focused ? "focus" : ""].filter(Boolean).join(" ");
+                    return <p key={`${paragraph.slice(0, 20)}-${index}`} id={sectionIndex >= 0 ? `source-section-${sectionIndex}` : undefined} className={className}>{paragraph}</p>;
                   })}</div>
                 </div>
               )}
@@ -382,6 +383,13 @@ export default function App() {
           setArchiveOpen(false);
           window.setTimeout(() => document.getElementById("workbench")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
         }}
+      />
+
+      <MapPanel
+        open={mapOpen}
+        deviceId={getDeviceId()}
+        onClose={() => setMapOpen(false)}
+        current={{ id: "current", title: result.title, field: result.field, result }}
       />
 
       <FeedbackDialog

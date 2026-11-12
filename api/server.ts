@@ -6,13 +6,28 @@
 //
 // dotenv 只在 Node 侧加载：Cloudflare Workers 由 wrangler 注入变量，那里没有 .env 文件。
 import "dotenv/config";
+import path from "node:path";
 import { serve } from "@hono/node-server";
 import app from "./boot";
 import { serveStaticFiles } from "./lib/vite";
 import { env } from "./lib/env";
 import { log } from "./lib/logger";
+import { createLocalStore } from "./lib/localstore";
+import { setDefaultBindings } from "./lib/bindings";
 
 serveStaticFiles(app);
+
+// 本地没绑 Cloudflare KV 时，用文件存储顶上：
+// 否则「存到云端」「文献地图」在 npm start 下永远返回 unavailable，
+// 这两个功能看起来就像没做。Workers 部署时这段不生效（走的还是 KV）。
+if (!env.isCloudflareWorkers) {
+  const dir = path.join(env.dataDir, "store");
+  setDefaultBindings({
+    ARCHIVE: createLocalStore(dir, "archives"),
+    SHARE: createLocalStore(dir, "shares"),
+  });
+  log.info(`本地存储已启用：${dir}（无需 Cloudflare KV）`);
+}
 
 serve({ fetch: app.fetch, port: env.port }, (info) => {
   log.info(`澄读已启动：http://localhost:${info.port}/`);
